@@ -11,35 +11,32 @@
 #import <netinet/in.h>
 #import <arpa/inet.h>
 
-// c语言调用OC的方法
-static HYSocket *kThisclass;
+static HYSocket *kThisclass;        // c语言调用OC的方法
 
 @interface HYSocket ()
 
 @property (nonatomic, assign)HYSocketType   socketType;             // socket类型
+@property (nonatomic, assign)BOOL           isInputConnected;       // 输入流是否建立连接
+@property (nonatomic, assign)BOOL           isOutputConnected;      // 输出流是否建立连接
+@property (nonatomic, assign)BOOL           isConnected;            // socket是否连接上
+@property (nonatomic, strong)NSTimer        *timer;                 // socket连接超时计时器
 
-@property (nonatomic, assign)BOOL           isInputConnected;       // 
-@property (nonatomic, assign)BOOL           isOutputConnected;
-@property (nonatomic, assign)BOOL           isConnected;
+@property (nonatomic, weak)HYSocket         *server;                // 服务端socket(OneClient 使用)
 
-@property (nonatomic, strong)NSTimer        *timer;
-
-// OneClient 使用
-@property (nonatomic, weak)HYSocket         *server;
-
-// 服务器端使用
-@property (nonatomic, strong)NSMutableArray *clientList;
+@property (nonatomic, strong)NSMutableArray *clientList;            // 连接上的客户端的数组(服务器端使用)
+@property (nonatomic, assign)NSInteger      clientlimit;            // 允许客户端连接数量(服务端使用)
 
 @end
 
 @implementation HYSocket
 
-//Server Start Listening Port
-- (void)listeningPort:(int)port asyncQueue:(dispatch_queue_t)queue {
+// 服务端开始监听端口
+- (void)listeningPort:(UInt16)port clientLimit:(NSInteger)clientLimit asyncQueue:(dispatch_queue_t)queue {
     kThisclass = self;
     _clientList = [NSMutableArray new];
     _socketType = HYSocketTypeServer;
     _queue = queue;
+    _clientlimit = clientLimit;
     
     dispatch_async(_queue, ^{
         [self _serverListeningPort:port];
@@ -47,19 +44,19 @@ static HYSocket *kThisclass;
     });
 }
 
-//Client Connect To Server
-- (void)connectServer:(NSString *)ip port:(int)port timeOut:(NSTimeInterval)time readAndWriteQueue:(dispatch_queue_t)queue {
+// 客户端连接服务端
+- (void)connectServer:(NSString *)ip port:(UInt16)port timeOut:(NSTimeInterval)time readAndWriteQueue:(dispatch_queue_t)queue {
     _socketType = HYSocketTypeClient;
     _queue = queue;
     _timeOut = time;
-
+    
     dispatch_async(_queue, ^{
         [self _clientConnectServer:ip port:port];
         [[NSRunLoop currentRunLoop] run];
     });
 }
 
-// Write Data
+// 将数据写入输出流
 - (void)writeData:(NSData *)data asyncQueue:(dispatch_queue_t)queue direct:(BOOL)direct completion:(void (^)(BOOL, NSUInteger))completion {
     if (data == nil || data.length < 1) {
         if (completion) {
@@ -94,10 +91,10 @@ static HYSocket *kThisclass;
     }
 }
 
-//Disconnect
+// 断开连接
 -(void)disconnect {
     
-    //Close Data Stream
+    // 关闭数据流
     if (_inputStream != nil) {
         [_inputStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
         [_inputStream close];
@@ -109,15 +106,13 @@ static HYSocket *kThisclass;
         _outputStream = nil;
     }
     
-    // Close sockets.
-    if (_socketipv4 != NULL)
-    {
+    // 关闭socket
+    if (_socketipv4 != NULL) {
         CFSocketInvalidate (_socketipv4);
         CFRelease (_socketipv4);
         _socketipv4 = NULL;
     }
     
-    // Closing the streams or sockets resulted in closing the underlying native socket
     _nativeSocket4 = 0;
     
     _isInputConnected = NO;
@@ -128,7 +123,7 @@ static HYSocket *kThisclass;
     _timer = nil;
 }
 
-// Get Host Address
+// 获取本地ip地址(暂不使用)
 - (NSString *)hostAddress {
     
     if (_nativeSocket4 <= 0) {
@@ -142,7 +137,7 @@ static HYSocket *kThisclass;
     return [self _getPortWithNativeHandle:_nativeSocket4 address:YES];
 }
 
-//
+// 获取本地socket连接的端口号(暂不使用)
 - (NSString *)hostPort {
     if (_nativeSocket4 <= 0) {
         if (_socketipv4 == nil) {
@@ -156,10 +151,8 @@ static HYSocket *kThisclass;
 }
 
 
-
 #pragma mark - NSStream delegate
 
-//Handle Event
 -(void)stream:(NSStream *)aStream handleEvent:(NSStreamEvent)eventCode {
     switch (eventCode) {
         case NSStreamEventOpenCompleted:{
@@ -169,7 +162,7 @@ static HYSocket *kThisclass;
             else if (aStream == _outputStream) {
                 _isOutputConnected = YES;
             }
-            //Connect Successed
+            // 连接成功
             if (_isOutputConnected && _isInputConnected) {
                 _isConnected = YES;
                 if (_socketType == HYSocketTypeClient) {
@@ -190,12 +183,12 @@ static HYSocket *kThisclass;
             break;
         case NSStreamEventHasBytesAvailable:
             if (aStream == _inputStream) {
-                //Read Data Available
+                // 可以读取数据
                 [self _readData];
             }
             break;
         case NSStreamEventErrorOccurred:{
-            //Network exception
+            // 网络异常
             [self disconnect];
             if (_socketType == HYSocketTypeClient) {
                 if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
@@ -213,7 +206,7 @@ static HYSocket *kThisclass;
         }
             break;
         case NSStreamEventEndEncountered:{
-            //Socket Is Disconneted
+            // socket断开连接
             [self disconnect];
             if (_socketType == HYSocketTypeClient) {
                 if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
@@ -240,15 +233,18 @@ static HYSocket *kThisclass;
 }
 
 
-
-
 #pragma mark - Socket callback handler
 
-//Handle Connect (C Function)
+// 服务端接收到新的客户端的连接
 static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *info) {
     
-    //When CFSocketCallBackType Is KCFSocketAcceptCallBack Type
+    // 只处理kCFSocketAcceptCallBack类型的事件
     if (type != kCFSocketAcceptCallBack) {
+        return;
+    }
+    
+    // 客户端连接数量限制
+    if (kThisclass.clientList.count >= kThisclass.clientlimit) {
         return;
     }
     
@@ -257,16 +253,15 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
 }
 
 
-
 #pragma mark - HYSocket foundation
 
-//Read Data
+// 读取数据流中的数据
 -(void)_readData {
-    //Read Data From Socket
+    
+    // 从socket中读取数据
     uint8_t buff[BUFFER_SIZE];
     long length = [_inputStream read:buff maxLength:BUFFER_SIZE];
     
-    //Receive Data Callback
     if (length > 0) {
         NSData *data = [NSData dataWithBytes:buff length:length];
         uint8_t *tmpBuff = buff;
@@ -276,7 +271,7 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     }
 }
 
-//Write Data directly
+// 直接写入数据流中
 - (NSUInteger)_writeDataDirectly:(NSData *)data {
     BOOL sended = NO;
     NSUInteger length = 0;
@@ -298,15 +293,15 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     return length;
 }
 
-//Write Data By Subpackage
+// 先分包，再直接写入数据流中
 -(NSUInteger)_writeDataBySubpackage:(NSData *)data {
-    //Write Data To Socket
+    
     uint8_t buff[BUFFER_SIZE];
     NSRange window = NSMakeRange(0, BUFFER_SIZE);
     
-    //Data Length
+    // 数据长度
     NSUInteger dataLength = [data length];
-    NSMutableData *tmpData = [NSMutableData dataWithBytes:&dataLength length:DATALENGTH_SIZE];
+    NSMutableData *tmpData = [NSMutableData dataWithBytes:&dataLength length:4];
     [tmpData appendData:data];
     
     NSUInteger length = 0;
@@ -336,9 +331,10 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     return length;
 }
 
-//Open Readstream And Writestream
+// 开启输入输出流
 -(void)_openReadStream:(CFReadStreamRef)readStream writeStream:(CFWriteStreamRef)writeStream {
-    //Set Data Stream
+    
+    // 设置数据流
     _inputStream = (__bridge_transfer NSInputStream *)readStream;
     _outputStream = (__bridge_transfer NSOutputStream *)writeStream;
     
@@ -353,11 +349,10 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
 }
 
 
-
 #pragma mark - Server socket
 
-//Server start Lisenting Port
--(void)_serverListeningPort:(int)port {
+// 服务端开始监听端口号
+-(void)_serverListeningPort:(UInt16)port {
     _socketipv4 = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketAcceptCallBack, handleConnect, NULL);
     
     struct sockaddr_in sin;
@@ -388,11 +383,11 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     
     CFRunLoopSourceRef socketsource = CFSocketCreateRunLoopSource(kCFAllocatorDefault, _socketipv4, 0);
     
-    //Server Begin Listening
+    // 开始监听
     CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource, kCFRunLoopCommonModes);
 }
 
-//Add New Client
+// 添加新接收的客户端
 - (void)_addOneClient:(CFSocketNativeHandle)nativeSocketHandle {
     HYSocket *client = [HYSocket new];
     client.delegate = _delegate;
@@ -407,28 +402,28 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
 
 #pragma mark - Client socket
 
-//Client Start Connecting Server
--(void)_clientConnectServer:(NSString *)ip port:(int)port {
+// 客户端连接服务端
+-(void)_clientConnectServer:(NSString *)ip port:(UInt16)port {
     //Connect To Server And Open I/O Stream
     /* Be deprecated by HY
-    _socketRef = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketAcceptCallBack, handleConnectServer, NULL);
-    
-    struct sockaddr_in sin;
-    
-    memset(&sin, 0, sizeof(sin));
-    sin.sin_len = sizeof(sin);
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(port);
-    sin.sin_addr.s_addr = inet_addr([ip UTF8String]);
-    
-    CFDataRef sincfd = CFDataCreate(kCFAllocatorDefault, (UInt8 *)&sin, sizeof(sin));
-    
-    CFSocketError result = CFSocketConnectToAddress(_socketRef, sincfd, -1);
+     _socketRef = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketAcceptCallBack, handleConnectServer, NULL);
+     
+     struct sockaddr_in sin;
+     
+     memset(&sin, 0, sizeof(sin));
+     sin.sin_len = sizeof(sin);
+     sin.sin_family = AF_INET;
+     sin.sin_port = htons(port);
+     sin.sin_addr.s_addr = inet_addr([ip UTF8String]);
+     
+     CFDataRef sincfd = CFDataCreate(kCFAllocatorDefault, (UInt8 *)&sin, sizeof(sin));
+     
+     CFSocketError result = CFSocketConnectToAddress(_socketRef, sincfd, -1);
      */
     
     CFReadStreamRef readStream;
     CFWriteStreamRef writeStream;
-
+    
     CFStreamCreatePairWithSocketToHost(NULL, (__bridge CFStringRef)ip, port, &readStream, &writeStream);
     
     if (readStream && writeStream) {
@@ -451,19 +446,18 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
 
 #pragma mark - New client
 
-//Handle New Native Socket
+// 接收到新客户端连接的处理
 -(void)_handleNewNativeSocket:(CFSocketNativeHandle)nativeSocketHandle readAndWriteQueue:(dispatch_queue_t)queue {
     _nativeSocket4 = nativeSocketHandle;
     _queue = queue;
     
     dispatch_async(_queue, ^{
-        //Set And Open I/O Stream
+        // 开启I/O数据流
         CFReadStreamRef readStream;
         CFWriteStreamRef writeStream;
         
         CFStreamCreatePairWithSocket(kCFAllocatorDefault, nativeSocketHandle, &readStream, &writeStream);
         
-        //New Client Callback
         if (readStream && writeStream) {
             [self _openReadStream:readStream writeStream:writeStream];
         }
@@ -471,13 +465,14 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
             [self disconnect];
             if (self.delegate && [_delegate respondsToSelector:@selector(onSocketDidAcceptNewClient:withError:)]) {
                 NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:nil];
-                    [self.delegate onSocketDidAcceptNewClient:self withError:error];
+                [self.delegate onSocketDidAcceptNewClient:self withError:error];
             }
         }
+        [[NSRunLoop currentRunLoop] run];
     });
 }
 
-//Host Port
+// 获取本地ip或端口号
 - (NSString *)_getPortWithNativeHandle:(CFSocketNativeHandle)nativeHandle address:(BOOL)addr {
     
     uint8_t name[SOCK_MAXADDRLEN];
@@ -507,7 +502,7 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
 
 #pragma mark - Private methods
 
-//Set Timer
+//设置连接超时计时器
 - (void)_setConnectTimeOut {
     if (!_isConnected) {
         [self disconnect];

@@ -8,10 +8,10 @@
 
 #import <Foundation/Foundation.h>
 
+@class HYSocket;
 
 #define BUFFER_SIZE       1024  // 设置socketI/O数据流的缓冲池大小
 #define DATALENGTH_SIZE   4     // 数据的长度占4个字符
-
 
 typedef NS_ENUM(NSUInteger, HYSocketType) {
     HYSocketTypeNone = 0,       // 未知
@@ -21,14 +21,12 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
 };
 
 
-@class HYSocket;
-
 @protocol HYSocketDelegate <NSObject>
 
 @required
 /**
  接收数据
-
+ 
  @param socket 接收数据的socket
  @param data   接收到的数据
  @param buff   接收到的原始数据
@@ -40,7 +38,7 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
 @optional
 /**
  服务端开启监听端口
-
+ 
  @param socket  服务端监听端口的socket
  @param error   error为nil，则监听成功
  */
@@ -50,7 +48,7 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
 
 /**
  客户端连接服务器
-
+ 
  @param socket  客户端socket
  @param error   error为nil，则连接服务器成功
  */
@@ -60,7 +58,7 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
 
 /**
  socket断开
-
+ 
  @param socket 断开的socket
  */
 - (void)onSocketDidDisConnect:(HYSocket *)socket;
@@ -68,7 +66,7 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
 
 /**
  服务端收到新客户端的连接
-
+ 
  @param socket  新建立的与客户端的socket
  @param error   error为nil，建立连接成功
  */
@@ -104,20 +102,12 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
  服务端设置监听端口
 
  @param port        端口号
- @param only        是否只允许一个客户端连接
+ @param clientLimit 允许客户端连接数量
  @param queue       监听端口的线程
  */
-- (void)listeningPort:(int)port
-        onlyOneClient:(BOOL)only
+- (void)listeningPort:(UInt16)port
+          clientLimit:(NSInteger)clientLimit
            asyncQueue:(dispatch_queue_t)queue;
-
-
-/**
- 设置新连接的客户端的读写线程
- 
- @param queue 线程
- */
-- (void)setNewClientQueue:(dispatch_queue_t)queue;
 
 
 /**
@@ -129,7 +119,7 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
  @param queue   接收，写入数据的队列
  */
 - (void)connectServer:(NSString *)ip
-                 port:(int)port
+                 port:(UInt16)port
               timeOut:(NSTimeInterval)time
     readAndWriteQueue:(dispatch_queue_t)queue;
 

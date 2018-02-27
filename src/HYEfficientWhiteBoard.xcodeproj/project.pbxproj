@@ -7,7 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		18AE0F1B1F9F27D2004AFC2E /* HYConversationManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 18AE0F1A1F9F27D2004AFC2E /* HYConversationManager.m */; };
+		182C922820440E09001AF957 /* HYConversationManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 18AE0F1A1F9F27D2004AFC2E /* HYConversationManager.m */; };
+		18D53BC12043ECBB003E7526 /* HYServerManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 18D53BC02043ECBB003E7526 /* HYServerManager.m */; };
 		18E6D76B1F99D435001F208C /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 18E6D76A1F99D435001F208C /* AppDelegate.m */; };
 		18E6D7731F99D435001F208C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 18E6D7721F99D435001F208C /* Assets.xcassets */; };
 		18E6D7791F99D435001F208C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 18E6D7781F99D435001F208C /* main.m */; };
@@ -38,6 +39,8 @@
 /* Begin PBXFileReference section */
 		18AE0F191F9F27D2004AFC2E /* HYConversationManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYConversationManager.h; sourceTree = "<group>"; };
 		18AE0F1A1F9F27D2004AFC2E /* HYConversationManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYConversationManager.m; sourceTree = "<group>"; };
+		18D53BBF2043ECBB003E7526 /* HYServerManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYServerManager.h; sourceTree = "<group>"; };
+		18D53BC02043ECBB003E7526 /* HYServerManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYServerManager.m; sourceTree = "<group>"; };
 		18E6D7661F99D435001F208C /* HYEfficientWhiteBoard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HYEfficientWhiteBoard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		18E6D7691F99D435001F208C /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		18E6D76A1F99D435001F208C /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -223,6 +226,8 @@
 		18FA86F91F99EACB00453DCB /* SocketService */ = {
 			isa = PBXGroup;
 			children = (
+				18D53BBF2043ECBB003E7526 /* HYServerManager.h */,
+				18D53BC02043ECBB003E7526 /* HYServerManager.m */,
 				18AE0F191F9F27D2004AFC2E /* HYConversationManager.h */,
 				18AE0F1A1F9F27D2004AFC2E /* HYConversationManager.m */,
 			);
@@ -360,8 +365,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				182C922820440E09001AF957 /* HYConversationManager.m in Sources */,
+				18D53BC12043ECBB003E7526 /* HYServerManager.m in Sources */,
 				18E6D7791F99D435001F208C /* main.m in Sources */,
-				18AE0F1B1F9F27D2004AFC2E /* HYConversationManager.m in Sources */,
 				18E6D7A71F99D753001F208C /* HYHomeViewController.m in Sources */,
 				18E6D7AE1F99E26D001F208C /* HYSocket.m in Sources */,
 				18FA86FC1F99EAFD00453DCB /* HYSocketService.m in Sources */,

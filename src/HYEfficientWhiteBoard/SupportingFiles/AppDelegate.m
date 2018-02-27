@@ -36,13 +36,12 @@
 
 
 - (void)applicationDidEnterBackground:(UIApplication *)application {
-    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
-    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    [self didEnterBackground:application];
 }
 
 
 - (void)applicationWillEnterForeground:(UIApplication *)application {
-    // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
+    [self willEnterForeground:application];
 }
 
 
@@ -53,6 +52,48 @@
 
 - (void)applicationWillTerminate:(UIApplication *)application {
     // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+}
+
+// 设置永久后台运行
+- (void)didEnterBackground:(UIApplication *)application {
+    UIApplication *app = application;
+    __block UIBackgroundTaskIdentifier bgTask;
+    bgTask = [app beginBackgroundTaskWithExpirationHandler:^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (bgTask != UIBackgroundTaskInvalid) {
+                bgTask = UIBackgroundTaskInvalid;
+            }
+        });
+    }];
+    
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (bgTask != UIBackgroundTaskInvalid) {
+                bgTask = UIBackgroundTaskInvalid;
+            }
+        });
+    });
+}
+
+// 进入前台后 endBackgroundTask
+- (void)willEnterForeground:(UIApplication *)application
+{
+    UIApplication *app = application;
+    __block UIBackgroundTaskIdentifier bgTask;
+    bgTask = [app beginBackgroundTaskWithExpirationHandler:^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (bgTask != UIBackgroundTaskInvalid) {
+                bgTask = UIBackgroundTaskInvalid;
+            }
+        });
+    }];
+    
+    if (bgTask != UIBackgroundTaskInvalid) {
+        NSLog(@"Debug - Ending background task %tu without expiration (when applicationWillEnterForeground)",bgTask);
+        [app endBackgroundTask:bgTask];
+        bgTask = UIBackgroundTaskInvalid;
+    }
+    
 }
 
 

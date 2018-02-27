@@ -21,23 +21,22 @@
 
 @interface HYSocketService () <HYSocketDelegate>
 
-@property (nonatomic, strong)HYSocket           *asyncSocket;
-@property (nonatomic, strong)NSMutableData      *receiveDatas;
-@property (nonatomic, assign)BOOL               upload;
-@property (nonatomic, assign)NSInteger          clientCount;
+@property (nonatomic, strong)HYSocket           *asyncSocket;               // socket
+@property (nonatomic, strong)NSMutableData      *receiveDatas;              // 接收到的数据的缓冲区
+@property (nonatomic, assign)BOOL               upload;                     // 是否为上传
 
-@property (nonatomic, strong)dispatch_queue_t   heartbeatQueue;
-@property (nonatomic, assign)NSTimeInterval     heartbeatStamp;
-@property (nonatomic, strong)NSTimer            *sendTimer;
-@property (nonatomic, strong)NSTimer            *checkTimer;
+@property (nonatomic, strong)dispatch_queue_t   heartbeatQueue;             // 心跳包线程
+@property (nonatomic, assign)NSTimeInterval     heartbeatStamp;             // 接收到心跳包的时间戳
+@property (nonatomic, strong)NSTimer            *sendTimer;                 // 发送心跳包的计时器
+@property (nonatomic, strong)NSTimer            *checkTimer;                // 检测心跳包的计时器
 
-@property (nonatomic, strong)dispatch_queue_t   streamQueue;
-@property (nonatomic, strong)dispatch_queue_t   processQueue;
+@property (nonatomic, strong)dispatch_queue_t   streamQueue;                // 数据流线程
+@property (nonatomic, strong)dispatch_queue_t   processQueue;               // 处理待发送数据的线程
 
-@property (nonatomic, strong)dispatch_queue_t   listenQueue;
+@property (nonatomic, strong)dispatch_queue_t   listenQueue;                // 监听端口所在线程
+@property (nonatomic, weak)id                   clientDelegate;             // 新客户端的代理
 
-@property (nonatomic, strong)void (^connectServer)(NSError *error);
-@property (nonatomic, strong)void (^startListening)(NSString *host);
+@property (nonatomic, strong)void (^connectServerBlock)(NSError *error);    // 连接服务器或客户端的回调
 
 @end
 
@@ -47,6 +46,7 @@
     if (self = [super init]) {
         _asyncSocket = [HYSocket new];
         _asyncSocket.delegate = self;
+        _receiveDatas = [NSMutableData new];
         _heartbeatQueue = dispatch_queue_create("com.Hayden.heartbeatQueue", DISPATCH_QUEUE_CONCURRENT);
         _processQueue = dispatch_queue_create("com.Hayden.processQueue", NULL);
         _streamQueue = dispatch_queue_create("com.Hayden.streamQueue", NULL);
@@ -59,34 +59,41 @@
 
 // 连接服务器
 - (void)connectToHost:(NSString *)host onPort:(int)port forUpload:(BOOL)upload completion:(void (^)(NSError *))completion {
-    _connectServer = completion;
+    _connectServerBlock = completion;
     _upload = upload;
-    _receiveDatas = [NSMutableData new];
     [_asyncSocket connectServer:host port:port timeOut:kSocketConnectTimeout readAndWriteQueue:_streamQueue];
 }
 
 // 服务器监听端口号
-- (void)startlisteningToPort:(int)port completion:(void (^)(NSString *))completion newClient:(void (^)(NSError *))handler {
-    _startListening = completion;
-    _connectServer = handler;
-    [_asyncSocket listeningPort:port asyncQueue:_listenQueue];
+- (void)startlisteningToPort:(int)port clientLimit:(NSInteger)clientLimit newClientDelegate:(id)delegate completion:(void (^)(NSError *))completion {
+    _connectServerBlock = completion;
+    _clientDelegate = delegate;
+    [_asyncSocket listeningPort:port clientLimit:clientLimit asyncQueue:_listenQueue];
 }
 
 // 发送消息
-- (void)sendMessage:(id)msg commandType:(NSInteger)type completion:(void (^)(BOOL, NSUInteger))completion {
+- (void)sendMessage:(id)msg completion:(void (^)(BOOL, NSUInteger))completion {
     
     // 消息类型
     if ([msg isKindOfClass:[NSString class]]) {
         // 序列化
         NSData *msgData = [msg dataUsingEncoding:NSUTF8StringEncoding];
+        uint32_t length = htonl(msgData.length);
+        NSMutableData *lengthData = [NSMutableData dataWithBytes:&length length:DATALENGTH_SIZE];
+        [lengthData appendData:msgData];
         
         // 发送数据
-        [self.asyncSocket writeData:msgData asyncQueue:_processQueue direct:NO completion:completion];
+        [self.asyncSocket writeData:lengthData asyncQueue:_processQueue direct:NO completion:completion];
     }
     // 文件类型
     else if ([msg isKindOfClass:[NSData class]]) {
+        NSData *temp = msg;
+        uint32_t length = htonl(temp.length);
+        NSMutableData *lengthData = [NSMutableData dataWithBytes:&length length:DATALENGTH_SIZE];
+        [lengthData appendData:msg];
+        
         // 发送数据
-        [self.asyncSocket writeData:msg asyncQueue:_processQueue direct:NO completion:completion];
+        [self.asyncSocket writeData:lengthData asyncQueue:_processQueue direct:NO completion:completion];
     }
     // 未知
     else {
@@ -107,18 +114,40 @@
 // 断开连接
 - (void)disconnectService {
     
-    if (_asyncSocket.isConnected) {
-        [_asyncSocket disconnect];
+    // 服务端
+    if (self.asyncSocket.socketType == HYSocketTypeServer) {
+        if (_asyncSocket.isConnected) {
+            if (_asyncSocket.clientList.count) {
+                [_asyncSocket.clientList enumerateObjectsUsingBlock:^(HYSocket * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                    [obj disconnect];
+                }];
+                
+                [_asyncSocket.clientList removeAllObjects];
+            }
+            
+            [_asyncSocket disconnect];
+        }
+        
+        _connectServerBlock = nil;
+        _upload = NO;
+        
+        _asyncSocket = nil;
     }
-    
-    _receiveDatas = nil;
-    _connectServer = nil;
-    _upload = NO;
-    
-    [_checkTimer invalidate];
-    [_sendTimer invalidate];
-    
-    _asyncSocket = nil;
+    // 客户端
+    else {
+        if (_asyncSocket.isConnected) {
+            [_asyncSocket disconnect];
+        }
+        
+        _receiveDatas = nil;
+        _connectServerBlock = nil;
+        _upload = NO;
+        
+        [_checkTimer invalidate];
+        [_sendTimer invalidate];
+        
+        _asyncSocket = nil;
+    }
 }
 
 // 获取本地ip地址
@@ -138,6 +167,83 @@
     return address ? address : @"0.0.0.0";
 }
 
+// 服务器检测端口是否可用
+- (BOOL)portEnabled:(UInt16)port preferIPv4:(BOOL)preferIPv4 {
+    int fd = -1;
+    
+    // ipv4
+    if (preferIPv4) {
+        struct sockaddr_in sin;
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        sin.sin_port = htons(port);
+        sin.sin_addr.s_addr = htonl(INADDR_ANY);
+        
+        fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        
+        if(fd < 0) {
+            printf("socket() error:%s\n", strerror(errno));
+            return -1;
+        }
+        if(bind(fd, (struct sockaddr *)&sin, sizeof(sin)) != 0) {
+            printf("bind() error:%s\n", strerror(errno));
+            close(fd);
+            return -1;
+        }
+        
+        uint len = sizeof(sin);
+        if(getsockname(fd, (struct sockaddr *)&sin, &len) != 0) {
+            printf("getsockname() error:%s\n", strerror(errno));
+            close(fd);
+            return -1;
+        }
+        
+        port = sin.sin_port;
+        if(fd != -1)
+            close(fd);
+    }
+    // ipv6
+    else {
+        struct sockaddr_in6 sin6;
+        memset(&sin6, 0, sizeof(sin6));
+        
+        char ip[128];
+        memset(ip, 0, sizeof(ip));
+        
+        inet_ntop(AF_INET6, &sin6.sin6_addr, ip, 128);
+        sin6.sin6_family = AF_INET6;
+        sin6.sin6_port = htons(0);
+        
+        fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+        
+        if(fd < 0){
+            printf("socket() error:%s\n", strerror(errno));
+            return -1;
+        }
+        
+        if(bind(fd, (struct sockaddr *)&sin6, sizeof(sin6)) != 0)
+        {
+            printf("bind() error:%s\n", strerror(errno));
+            close(fd);
+            return -1;
+        }
+        
+        uint len = sizeof(sin6);
+        if(getsockname(fd, (struct sockaddr *)&sin6, &len) != 0)
+        {
+            printf("getsockname() error:%s\n", strerror(errno));
+            close(fd);
+            return -1;
+        }
+        
+        port = sin6.sin6_port;
+        
+        if(fd != -1)
+            close(fd);
+    }
+    
+    return port;
+}
 
 
 #pragma mark - HYSocketDelegate
@@ -145,7 +251,7 @@
 // 接收数据
 - (void)onSocket:(HYSocket *)socket didReceiveData:(NSData *)data originBuff:(uint8_t *)buff {
     
-    if (data.length >= DATALENGTH_SIZE) {
+    if (data.length >= sizeof(uint16_t)) {
         // 上一个包存在半包，且不是递归
         if (socket && _receiveDatas.length > 0) {
             [_receiveDatas appendData:data];
@@ -156,30 +262,34 @@
         [_receiveDatas resetBytesInRange:NSMakeRange(0, data.length)];
         [_receiveDatas setLength:0];
         
+        // 心跳包
+        uint16_t command = [self _commandWithData:data];
+        if (command == kCommandHeartbeat) {
+            _heartbeatStamp = [[NSDate date] timeIntervalSince1970];
+            // 递归解析
+            if (data.length > sizeof(command)) {
+                [self onSocket:nil didReceiveData:[data subdataWithRange:NSMakeRange(sizeof(command), data.length - sizeof(command))] originBuff:nil];
+            }
+            return ;
+        }
+        
         // 获取数据长度
         uint32_t dataLength;
         [data getBytes:&dataLength range:NSMakeRange(0, DATALENGTH_SIZE)];
+        dataLength = ntohl(dataLength);
         
         // 完整数据包
-        if (dataLength == data.length - DATALENGTH_SIZE) {
-            // 心跳包
-            NSData *msgData = [data subdataWithRange:NSMakeRange(DATALENGTH_SIZE, dataLength)];
-            if (dataLength == 2 + DATALENGTH_SIZE && [self _commandWithData:msgData] == kCommandHeartbeat) {
-                _heartbeatStamp = [[NSDate date] timeIntervalSince1970];
-            }
-            // 其他数据
-            else {
-                // 分发数据
-                if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:)]) {
-                    [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE, dataLength)]];
-                }
+        if (data.length > DATALENGTH_SIZE && dataLength == data.length - DATALENGTH_SIZE) {
+            // 分发数据
+            if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:service:)]) {
+                [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE, dataLength)] service:self];
             }
         }
         // 粘包
-        else if (dataLength < data.length - DATALENGTH_SIZE) {
+        else if (data.length > DATALENGTH_SIZE && dataLength < data.length - DATALENGTH_SIZE) {
             // 分发完整数据
-            if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:)]) {
-                [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE, dataLength)]];
+            if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:service:)]) {
+                [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE, dataLength)] service:self];
             }
             // 剪裁数据
             [_receiveDatas appendData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE + dataLength, data.length - (DATALENGTH_SIZE + dataLength))]];;
@@ -205,9 +315,9 @@
             [self _startRunLoopForHeartbeat];
         }
         
-        if (_connectServer) {
-            _connectServer(error);
-            _connectServer = nil;
+        if (_connectServerBlock) {
+            _connectServerBlock(error);
+            _connectServerBlock = nil;
         }
         else if (error) {
             [self onSocketDidDisConnect:nil];
@@ -226,39 +336,30 @@
 
 // 服务器开启监听
 - (void)onSocketDidStartListening:(HYSocket *)socket withError:(NSError *)error {
-    
-    if (error) {
-        if (_startListening) {
-            _startListening(@"端口监听失败...");
-            _startListening = nil;
-        }
-    }
-    else {
-        if (_startListening) {
-            _startListening([HYSocketService getIPAddress:YES]);
-            _startListening = nil;
-        }
+    if (_connectServerBlock) {
+        _connectServerBlock(error);
+        _connectServerBlock = nil;
     }
 }
 
 // 新客户端连接到服务器
 - (void)onSocketDidAcceptNewClient:(HYSocket *)socket withError:(NSError *)error {
-    // 连接成功
-    if (error == nil) {
-        _clientCount = _asyncSocket.clientList.count;
-        // 开启心跳包
-        [self _startRunLoopForHeartbeat];
+    // 服务端的读写流创建失败
+    if (error) {
+        NSLog(@"****HY Error:%@ Code:%zd", error.domain, error.code);
     }
-    
-    if (_connectServer) {
-        _connectServer(error);
-        _connectServer = nil;
-    }
-    else if (error) {
-        [self onSocketDidDisConnect:nil];
+    else {
+        HYSocketService *newServeice = [[HYSocketService alloc] init];
+        newServeice.asyncSocket = socket;
+        newServeice.delegate = _clientDelegate;
+        newServeice.indexTag = self.asyncSocket.clientList.count - 1;
+        [newServeice _startRunLoopForHeartbeat];
+        
+        if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceAcceptNewClient:server:)]) {
+            [_delegate onSocketServiceAcceptNewClient:newServeice server:self];
+        }
     }
 }
-
 
 
 #pragma mark - Property setter and getter
@@ -284,29 +385,31 @@
 - (uint16_t)_commandWithData:(NSData *)data {
     uint16_t command;
     [data getBytes:&command length:sizeof(command)];
-    return command;
+    return ntohs(command);
 }
 
 // 开启心跳包线程
 - (void)_startRunLoopForHeartbeat {
+    _heartbeatStamp = [[NSDate date] timeIntervalSince1970];
+    
     dispatch_async(_heartbeatQueue, ^{
         [self _sendHeartbeatMessage];
         [[NSRunLoop currentRunLoop] addTimer:_sendTimer forMode:NSRunLoopCommonModes];
-        [[NSRunLoop currentRunLoop] addTimer:_checkTimer forMode:NSRunLoopCommonModes];
         [[NSRunLoop currentRunLoop] run];
+    });
+    
+    dispatch_async(_streamQueue, ^{
+        [[NSRunLoop currentRunLoop] addTimer:_checkTimer forMode:NSRunLoopCommonModes];
     });
 }
 
 // 发送心跳包
 - (void)_sendHeartbeatMessage {
-    uint16_t command = kCommandHeartbeat;
+    uint16_t command = htons(kCommandHeartbeat);
     NSData *cmdData = [NSData dataWithBytes:&command length:sizeof(command)];
-    NSInteger length = cmdData.length;
-    NSMutableData *data = [NSMutableData dataWithBytes:&length length:DATALENGTH_SIZE];
-    [data appendData:cmdData];
     
     // 心跳在自己的线程发送
-    [_asyncSocket writeData:data asyncQueue:nil direct:YES completion:nil];
+    [_asyncSocket writeData:cmdData asyncQueue:nil direct:YES completion:nil];
 }
 
 // 检测心跳包，没收到则断开连接
@@ -327,13 +430,14 @@
     if(!getifaddrs(&interfaces)) {
         // Loop through linked list of interfaces
         struct ifaddrs *interface;
-        for(interface=interfaces; interface; interface=interface->ifa_next) {
+        for(interface = interfaces; interface; interface = interface->ifa_next) {
             if(!(interface->ifa_flags & IFF_UP) /* || (interface->ifa_flags & IFF_LOOPBACK) */ ) {
                 continue; // deeply nested code harder to read
             }
-            const struct sockaddr_in *addr = (const struct sockaddr_in*)interface->ifa_addr;
-            char addrBuf[ MAX(INET_ADDRSTRLEN, INET6_ADDRSTRLEN) ];
-            if(addr && (addr->sin_family==AF_INET || addr->sin_family==AF_INET6)) {
+            
+            const struct sockaddr_in *addr = (const struct sockaddr_in *)interface->ifa_addr;
+            char addrBuf[MAX(INET_ADDRSTRLEN, INET6_ADDRSTRLEN)];
+            if(addr && (addr->sin_family == AF_INET || addr->sin_family == AF_INET6)) {
                 NSString *name = [NSString stringWithUTF8String:interface->ifa_name];
                 NSString *type;
                 if(addr->sin_family == AF_INET) {
@@ -341,7 +445,7 @@
                         type = IP_ADDR_IPv4;
                     }
                 } else {
-                    const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6*)interface->ifa_addr;
+                    const struct sockaddr_in6 *addr6 = (const struct sockaddr_in6 *)interface->ifa_addr;
                     if(inet_ntop(AF_INET6, &addr6->sin6_addr, addrBuf, INET6_ADDRSTRLEN)) {
                         type = IP_ADDR_IPv6;
                     }

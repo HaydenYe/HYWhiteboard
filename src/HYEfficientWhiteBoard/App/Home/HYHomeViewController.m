@@ -8,9 +8,7 @@
 
 #import "HYHomeViewController.h"
 #import "HYConversationManager.h"
-
-#define kUploadPort    23333     // 上传端口
-#define kServerPort    22222     // 会话端口
+#import "HYServerManager.h"
 
 @interface HYHomeViewController () <UITextFieldDelegate>
 
@@ -51,9 +49,17 @@
     self.loadingLb.text = @"连接中...";
     
     // 连接服务器
+    NSMutableString *text = [[NSMutableString alloc] initWithString:textField.text];
+    NSArray *strArr = [text componentsSeparatedByString:@" "];
+    if (strArr.count != 2) {
+        self.loadingLb.text = @"ip输入格式有误,例:172.168.2.2 43999";
+        return ;
+    }
+    
     __weak typeof(self) ws = self;
-    [[HYConversationManager shared] connectWhiteboardServer:textField.text port:kServerPort successed:^(HYSocketService *service) {
-        // 上传图片
+    [[HYConversationManager shared] connectWhiteboardServer:strArr[0] port:[strArr[1] intValue] successed:^(HYSocketService *service) {
+        // 跳转白板页面
+        ws.loadingLb.text = @"连接成功";
         
     } failed:^(NSError *error) {
         NSLog(@"****HY Error:%@", error.domain);
@@ -85,10 +91,8 @@
         
         // 开启服务器监听
         __weak typeof(self) ws = self;
-        [[HYConversationManager shared] startServerWithPort:kServerPort completion:^(NSString *host) {
-            ws.serverLb.text = [@"服务器ip: " stringByAppendingString:host];
-        } clientConnectedSuccessed:^(HYSocketService *service) {
-            ws.serverLb.text = @"连接成功";
+        [[HYServerManager shared] startServerForListeningSuccessed:^(NSString *ip, int port) {
+            ws.serverLb.text = [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port];
         } failed:^(NSError *error) {
             NSLog(@"****HY Error:客户端连接失败");
             ws.serverLb.text = error.domain;
@@ -151,7 +155,7 @@
 - (UITextField *)clientTf {
     if (_clientTf == nil) {
         _clientTf = [UITextField new];
-        _clientTf.placeholder = @"输入服务器ip地址";
+        _clientTf.placeholder = @"输入服务器ip地址和端口(ip和端口用空格隔开)";
         _clientTf.delegate = self;
         _clientTf.textAlignment = NSTextAlignmentCenter;
         _clientTf.font = [UIFont systemFontOfSize:14.f];
