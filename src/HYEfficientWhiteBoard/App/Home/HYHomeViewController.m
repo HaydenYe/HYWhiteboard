@@ -10,6 +10,8 @@
 #import "HYConversationManager.h"
 #import "HYServerManager.h"
 
+#import "HYWhiteboardViewController.h"
+
 @interface HYHomeViewController () <UITextFieldDelegate>
 
 @property (nonatomic, strong)UIButton    *serverBtn;     // 选择按钮
@@ -19,6 +21,8 @@
 @property (nonatomic, strong)UITextField *clientTf;      // 输入连接服务器的地址
 
 @property (nonatomic, strong)UILabel     *loadingLb;     // loading...
+
+@property (nonatomic, strong)UIButton    *whiteboardBtn; // 白板按钮
 
 @end
 
@@ -59,8 +63,8 @@
     __weak typeof(self) ws = self;
     [[HYConversationManager shared] connectWhiteboardServer:strArr[0] port:[strArr[1] intValue] successed:^(HYSocketService *service) {
         // 跳转白板页面
-        ws.loadingLb.text = @"连接成功";
-        
+        HYWhiteboardViewController *vc = [HYWhiteboardViewController new];
+        [ws.navigationController pushViewController:vc animated:YES];
     } failed:^(NSError *error) {
         NSLog(@"****HY Error:%@", error.domain);
         ws.loadingLb.text = error.domain;
@@ -71,10 +75,12 @@
 #pragma mark - Private methods
 // 设置子视图
 - (void)_configOwnViews {
-    self.serverBtn.frame = CGRectMake(0, 250.f, [UIScreen mainScreen].bounds.size.width, 44.f);
-    self.clientBtn.frame = CGRectMake(0, 300.f, [UIScreen mainScreen].bounds.size.width, 44.f);
+    self.serverBtn.frame = CGRectMake(0, 225.f, [UIScreen mainScreen].bounds.size.width, 44.f);
+    self.clientBtn.frame = CGRectMake(0, 275.f, [UIScreen mainScreen].bounds.size.width, 44.f);
+    self.whiteboardBtn.frame = CGRectMake(0, 325, [UIScreen mainScreen].bounds.size.width, 44.f);
     [self.view addSubview:_serverBtn];
     [self.view addSubview:_clientBtn];
+    [self.view addSubview:_whiteboardBtn];
 }
 
 
@@ -99,10 +105,15 @@
         }];
     }
     // 客户端
-    else {
+    else if (sender.tag == 200) {
         self.clientTf.frame = CGRectMake(0, 250.f, [UIScreen mainScreen].bounds.size.width, 44.f);
         [self.view addSubview:_clientTf];
         [_clientTf becomeFirstResponder];
+    }
+    // 直接进入白板
+    else {
+        HYWhiteboardViewController *vc = [HYWhiteboardViewController new];
+        [self.navigationController pushViewController:vc animated:YES];
     }
 }
 
@@ -177,6 +188,22 @@
     }
     
     return _loadingLb;
+}
+
+// 白板按钮
+- (UIButton *)whiteboardBtn {
+    if (_whiteboardBtn == nil) {
+        _whiteboardBtn = [UIButton new];
+        [_whiteboardBtn setTitle:@"进入白板(不使用网络)" forState:UIControlStateNormal];
+        [_whiteboardBtn setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+        _whiteboardBtn.titleLabel.font = [UIFont systemFontOfSize:15.f];
+        _whiteboardBtn.layer.borderColor = [UIColor blackColor].CGColor;
+        _whiteboardBtn.layer.borderWidth = 1.f;
+        _whiteboardBtn.tag = 300;
+        [_whiteboardBtn addTarget:self action:@selector(_didClickButton:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    
+    return _whiteboardBtn;
 }
 
 @end

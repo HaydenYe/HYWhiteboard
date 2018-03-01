@@ -8,6 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		182C922820440E09001AF957 /* HYConversationManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 18AE0F1A1F9F27D2004AFC2E /* HYConversationManager.m */; };
+		182C922B20454C53001AF957 /* HYWhiteboardViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 182C922A20454C53001AF957 /* HYWhiteboardViewController.m */; };
+		182C922E204556DF001AF957 /* HYColorPanel.m in Sources */ = {isa = PBXBuildFile; fileRef = 182C922D204556DF001AF957 /* HYColorPanel.m */; };
+		182C92322046BC6D001AF957 /* HYWhiteboardView.m in Sources */ = {isa = PBXBuildFile; fileRef = 182C92312046BC6D001AF957 /* HYWhiteboardView.m */; };
+		182C92352046BD4E001AF957 /* HYCADisplayLinkHolder.m in Sources */ = {isa = PBXBuildFile; fileRef = 182C92342046BD4E001AF957 /* HYCADisplayLinkHolder.m */; };
+		182C92382047A86B001AF957 /* HYWbPoint.m in Sources */ = {isa = PBXBuildFile; fileRef = 182C92372047A86B001AF957 /* HYWbPoint.m */; };
 		18D53BC12043ECBB003E7526 /* HYServerManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 18D53BC02043ECBB003E7526 /* HYServerManager.m */; };
 		18E6D76B1F99D435001F208C /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 18E6D76A1F99D435001F208C /* AppDelegate.m */; };
 		18E6D7731F99D435001F208C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 18E6D7721F99D435001F208C /* Assets.xcassets */; };
@@ -37,6 +42,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		182C922920454C53001AF957 /* HYWhiteboardViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYWhiteboardViewController.h; sourceTree = "<group>"; };
+		182C922A20454C53001AF957 /* HYWhiteboardViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYWhiteboardViewController.m; sourceTree = "<group>"; };
+		182C922C204556DF001AF957 /* HYColorPanel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYColorPanel.h; sourceTree = "<group>"; };
+		182C922D204556DF001AF957 /* HYColorPanel.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYColorPanel.m; sourceTree = "<group>"; };
+		182C922F20455B04001AF957 /* PrefixHeader.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PrefixHeader.pch; sourceTree = "<group>"; };
+		182C92302046BC6D001AF957 /* HYWhiteboardView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYWhiteboardView.h; sourceTree = "<group>"; };
+		182C92312046BC6D001AF957 /* HYWhiteboardView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYWhiteboardView.m; sourceTree = "<group>"; };
+		182C92332046BD4E001AF957 /* HYCADisplayLinkHolder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYCADisplayLinkHolder.h; sourceTree = "<group>"; };
+		182C92342046BD4E001AF957 /* HYCADisplayLinkHolder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYCADisplayLinkHolder.m; sourceTree = "<group>"; };
+		182C92362047A86B001AF957 /* HYWbPoint.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYWbPoint.h; sourceTree = "<group>"; };
+		182C92372047A86B001AF957 /* HYWbPoint.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYWbPoint.m; sourceTree = "<group>"; };
 		18AE0F191F9F27D2004AFC2E /* HYConversationManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYConversationManager.h; sourceTree = "<group>"; };
 		18AE0F1A1F9F27D2004AFC2E /* HYConversationManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYConversationManager.m; sourceTree = "<group>"; };
 		18D53BBF2043ECBB003E7526 /* HYServerManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYServerManager.h; sourceTree = "<group>"; };
@@ -143,6 +159,7 @@
 				18E6D7721F99D435001F208C /* Assets.xcassets */,
 				18E6D7771F99D435001F208C /* Info.plist */,
 				18E6D7781F99D435001F208C /* main.m */,
+				182C922F20455B04001AF957 /* PrefixHeader.pch */,
 			);
 			path = SupportingFiles;
 			sourceTree = "<group>";
@@ -177,6 +194,8 @@
 		18E6D79F1F99D6A1001F208C /* Controllers */ = {
 			isa = PBXGroup;
 			children = (
+				182C922920454C53001AF957 /* HYWhiteboardViewController.h */,
+				182C922A20454C53001AF957 /* HYWhiteboardViewController.m */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -184,6 +203,10 @@
 		18E6D7A01F99D6A1001F208C /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				182C92332046BD4E001AF957 /* HYCADisplayLinkHolder.h */,
+				182C92342046BD4E001AF957 /* HYCADisplayLinkHolder.m */,
+				182C92362047A86B001AF957 /* HYWbPoint.h */,
+				182C92372047A86B001AF957 /* HYWbPoint.m */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -191,6 +214,10 @@
 		18E6D7A11F99D6A1001F208C /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				182C922C204556DF001AF957 /* HYColorPanel.h */,
+				182C922D204556DF001AF957 /* HYColorPanel.m */,
+				182C92302046BC6D001AF957 /* HYWhiteboardView.h */,
+				182C92312046BC6D001AF957 /* HYWhiteboardView.m */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -365,13 +392,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				182C922B20454C53001AF957 /* HYWhiteboardViewController.m in Sources */,
 				182C922820440E09001AF957 /* HYConversationManager.m in Sources */,
+				182C92382047A86B001AF957 /* HYWbPoint.m in Sources */,
 				18D53BC12043ECBB003E7526 /* HYServerManager.m in Sources */,
 				18E6D7791F99D435001F208C /* main.m in Sources */,
+				182C922E204556DF001AF957 /* HYColorPanel.m in Sources */,
 				18E6D7A71F99D753001F208C /* HYHomeViewController.m in Sources */,
 				18E6D7AE1F99E26D001F208C /* HYSocket.m in Sources */,
 				18FA86FC1F99EAFD00453DCB /* HYSocketService.m in Sources */,
+				182C92322046BC6D001AF957 /* HYWhiteboardView.m in Sources */,
 				18E6D76B1F99D435001F208C /* AppDelegate.m in Sources */,
+				182C92352046BD4E001AF957 /* HYCADisplayLinkHolder.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -518,6 +550,8 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = Q5S2G3YXB4;
+				GCC_INCREASE_PRECOMPILED_HEADER_SHARING = NO;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/HYEfficientWhiteBoard/SupportingFiles/PrefixHeader.pch";
 				INFOPLIST_FILE = HYEfficientWhiteBoard/SupportingFiles/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -534,6 +568,8 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = Q5S2G3YXB4;
+				GCC_INCREASE_PRECOMPILED_HEADER_SHARING = NO;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/HYEfficientWhiteBoard/SupportingFiles/PrefixHeader.pch";
 				INFOPLIST_FILE = HYEfficientWhiteBoard/SupportingFiles/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
