@@ -376,6 +376,7 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
         }
     }
     else {
+        _isConnected = YES;
         if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidStartListening:withError:)]) {
             [self.delegate onSocketDidStartListening:self withError:nil];
         }

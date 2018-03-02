@@ -42,6 +42,13 @@
     [self _configWhiteboardDataSource];
 }
 
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    
+    // 断网
+    [[HYConversationManager shared] disconnectWhiteboard];
+}
+
 - (void)didReceiveMemoryWarning {
     [super didReceiveMemoryWarning];
 }
@@ -150,17 +157,24 @@
 #pragma mark - HYConversationDelegate
 
 // 接收到画线的点
-- (void)onReceivePoint:(CGPoint)point type:(uint8_t)type isEraser:(BOOL)isEraser {
-    
+- (void)onReceivePoint:(HYWbPoint *)point {
+
     // 同时只能绘制一个人的画线
-    if ((HYWbPointType)type == HYWbPointTypeEnd) {
+    if (point.type == HYWbPointTypeEnd) {
         _drawable = YES;
     }
     else {
         _drawable = NO;
     }
     
-    [self _onPointCollected:point type:(HYWbPointType)type isEraser:isEraser];
+    point.lineWidth = _lineWidth;
+    point.colorIndex = _lineColorIndex;
+    [self _addPoint:point userId:UserOfLinesOther];
+    
+    // 橡皮擦直接渲染到视图上
+    if (point.isEraser) {
+        [_wbView drawEraserLineByPoint:point];
+    }
 }
 
 // 接收到画笔颜色、宽度
@@ -203,6 +217,11 @@
         default:
             break;
     }
+}
+
+// 网络断开
+- (void)onNetworkDisconnect {
+    [self.navigationController popViewControllerAnimated:YES];
 }
 
 
@@ -253,34 +272,34 @@
     
     switch (panGestureRecognizer.state) {
         case UIGestureRecognizerStateBegan:
-            [[HYConversationManager shared] sendPointMsg:[self _onPointCollected:p type:HYWbPointTypeStart isEraser:_isEraser]];
+            [self _onPointCollected:p type:HYWbPointTypeStart];
             break;
         case UIGestureRecognizerStateChanged:
-            [[HYConversationManager shared] sendPointMsg:[self _onPointCollected:p type:HYWbPointTypeMove isEraser:_isEraser]];
+            [self _onPointCollected:p type:HYWbPointTypeMove];
             break;
         default:
-            [[HYConversationManager shared] sendPointMsg:[self _onPointCollected:p type:HYWbPointTypeEnd isEraser:_isEraser]];
+            [self _onPointCollected:p type:HYWbPointTypeEnd];
             break;
     }
 }
 
 // 收集画线的点
-- (HYWbPoint *)_onPointCollected:(CGPoint)p type:(HYWbPointType)type isEraser:(BOOL)isEraser {
+- (void)_onPointCollected:(CGPoint)p type:(HYWbPointType)type {
     HYWbPoint *point = [HYWbPoint new];
     point.type = type;
-    point.xScale = (p.x)/_wbView.frame.size.width;
-    point.yScale = (p.y)/_wbView.frame.size.height;
+    point.xScale = (p.x) / _wbView.frame.size.width;
+    point.yScale = (p.y) / _wbView.frame.size.height;
     point.colorIndex = _lineColorIndex;
     point.lineWidth = _lineWidth;
     [self _addPoint:point userId:UserOfLinesMine];
     
     // 橡皮擦直接渲染到视图上
-    if (isEraser) {
+    if (_isEraser) {
         point.isEraser = YES;
         [_wbView drawEraserLineByPoint:point];
     }
     
-    return point;
+    [[HYConversationManager shared] sendPointMsg:point];
 }
 
 // 保存点

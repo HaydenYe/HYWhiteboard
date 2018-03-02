@@ -11,7 +11,6 @@
 @class HYSocket;
 
 #define BUFFER_SIZE       1024  // 设置socketI/O数据流的缓冲池大小
-#define DATALENGTH_SIZE   4     // 数据的长度占4个字符
 
 typedef NS_ENUM(NSUInteger, HYSocketType) {
     HYSocketTypeNone = 0,       // 未知
@@ -95,7 +94,9 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
 
 @property (nonatomic, assign, readonly)HYSocketType                 socketType;   // socket类型
 @property (nonatomic, assign, readonly)BOOL                         isConnected;  // 是否连接上
+
 @property (nonatomic, strong, readonly)NSMutableArray<HYSocket *>   *clientList;  // 连接上的客户端的数组(服务器端使用)
+@property (nonatomic, weak, readonly)HYSocket                       *server;      // 服务端socket(OneClient 使用)
 
 
 /**

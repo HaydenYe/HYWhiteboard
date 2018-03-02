@@ -36,12 +36,8 @@ typedef NS_ENUM(NSUInteger, HYMessageCmd) {
  接收到画点消息
  
  @param point       画线的点
- @param type        画线的点的类型
- @param isEraser    是否为橡皮擦
  */
-- (void)onReceivePoint:(CGPoint)point
-                  type:(uint8_t)type
-              isEraser:(BOOL)isEraser;
+- (void)onReceivePoint:(HYWbPoint *)point;
 
 
 /**
@@ -60,6 +56,12 @@ typedef NS_ENUM(NSUInteger, HYMessageCmd) {
  @param type 撤销，恢复，全部擦除
  */
 - (void)onReceiveEditAction:(HYMessageCmd)type;
+
+
+/**
+ 网络断开
+ */
+- (void)onNetworkDisconnect;
 
 @end
 
@@ -88,6 +90,14 @@ typedef NS_ENUM(NSUInteger, HYMessageCmd) {
                            port:(int)port
                       successed:(void(^)(HYSocketService *service))successd
                          failed:(void(^)(NSError *error))failed;
+
+
+/**
+ 添加新客户端的服务
+
+ @param clientService 新客户端的服务
+ */
+- (void)addNewClient:(HYSocketService *)clientService;
 
 
 /**

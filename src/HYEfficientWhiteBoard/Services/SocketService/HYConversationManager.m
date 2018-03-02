@@ -66,6 +66,12 @@
     }];
 }
 
+// 添加新客户端的服务
+- (void)addNewClient:(HYSocketService *)clientService {
+    _serveice = clientService;
+    [self _startSendingCmd];
+}
+
 // 发送画点的消息
 - (void)sendPointMsg:(HYWbPoint *)point {
     NSString *msg = [NSString stringWithFormat:kMsgPointFormatter, point.isEraser ? HYMessageCmdEraserPoint : HYMessageCmdDrawPoint, point.xScale, point.yScale, (uint8_t)point.type];
@@ -112,9 +118,16 @@
             
         // 橡皮
         case HYMessageCmdEraserPoint:{
-            if (_converDelegate && [_converDelegate respondsToSelector:@selector(onReceivePoint:type:isEraser:)]) {
+            if (_converDelegate && [_converDelegate respondsToSelector:@selector(onReceivePoint:)]) {
+                
+                HYWbPoint *point = [HYWbPoint new];
+                point.xScale = [dataArr[1] floatValue];
+                point.yScale = [dataArr[2] floatValue];
+                point.type = (HYWbPointType)[dataArr[3] intValue];
+                point.isEraser = cmd == HYMessageCmdDrawPoint ? NO : YES;
+                
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_converDelegate onReceivePoint:CGPointMake([dataArr[1] floatValue], [dataArr[2] floatValue]) type:[dataArr[3] intValue] isEraser:cmd == HYMessageCmdDrawPoint ? NO : YES];
+                    [_converDelegate onReceivePoint:point];
                 });
             }
             break ;
@@ -161,6 +174,10 @@
             [_cmdTimer invalidate];
             _cmdTimer = nil;
         }
+    }
+    
+    if (_converDelegate && [_converDelegate respondsToSelector:@selector(onNetworkDisconnect)]) {
+        [_converDelegate onNetworkDisconnect];
     }
 }
 

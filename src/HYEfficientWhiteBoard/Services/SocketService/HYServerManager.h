@@ -39,4 +39,10 @@
 - (void)startServerForListeningSuccessed:(void (^)(NSString *ip, int port))successd
                                   failed:(void (^)(NSError *error))failed;
 
+
+/**
+ 停止监听端口，断开连接
+ */
+- (void)stopListeningPort;
+
 @end

@@ -10,10 +10,16 @@
 
 @class HYSocket, HYSocketService;
 
-#define kSocketConnectTimeout 30        // 连接服务器超时时间
+#define kDataLengthSize       4         // 数据的长度占4个字节
+#define kSocketCmdLength      2         // 消息类型长度占2个字节
+
+#define kSocketConnectTimeout 20        // 连接服务器超时时间
 
 #define kTimeSendHeartbeat    3         // 心跳发送的时间间隔
 #define kTimeCheckHeartbeat   7         // 检测心跳包时间间隔
+
+#define kCommandNormal        101       // 普通消息
+#define kCommandFile          1001      // 文件消息
 #define kCommandHeartbeat     10001     // 心跳包命令
 
 

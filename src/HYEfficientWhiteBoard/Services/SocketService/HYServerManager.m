@@ -55,11 +55,18 @@
     }];
 }
 
+// 停止监听端口，断开连接
+- (void)stopListeningPort {
+    [_serveice disconnectService];
+    _serveice = nil;
+}
+
 
 #pragma mark - HYSocketServiceDelegate
 
 // 有新的客户端连接
 - (void)onSocketServiceAcceptNewClient:(HYSocketService *)client server:(HYSocketService *)server {
+    [[HYConversationManager shared] addNewClient:client];
     if (_serverDelegate && [_serverDelegate respondsToSelector:@selector(onServerAcceptNewClient)]) {
         [_serverDelegate onServerAcceptNewClient];
     }

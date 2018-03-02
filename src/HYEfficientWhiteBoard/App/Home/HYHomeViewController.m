@@ -16,6 +16,7 @@
 
 @property (nonatomic, strong)UIButton    *serverBtn;     // 选择按钮
 @property (nonatomic, strong)UILabel     *serverLb;      // 显示服务器ip地址
+@property (nonatomic, strong)UIButton    *refreshPortBtn;   // 刷新端口号
 
 @property (nonatomic, strong)UIButton    *clientBtn;     // 选择按钮
 @property (nonatomic, strong)UITextField *clientTf;      // 输入连接服务器的地址
@@ -76,6 +77,8 @@
         // 跳转白板页面
         HYWhiteboardViewController *vc = [HYWhiteboardViewController new];
         [ws.navigationController pushViewController:vc animated:YES];
+        
+        ws.loadingLb.text = @"连接成功";
     } failed:^(NSError *error) {
         NSLog(@"****HY Error:%@", error.domain);
         ws.loadingLb.text = error.domain;
@@ -109,6 +112,22 @@
         
         self.serverLb.frame = CGRectMake(0, 250.f, [UIScreen mainScreen].bounds.size.width, 44.f);
         [self.view addSubview:_serverLb];
+        
+        self.refreshPortBtn.frame = CGRectMake(0, 300.f, [UIScreen mainScreen].bounds.size.width, 44.f);
+        [self.view addSubview:_refreshPortBtn];
+        
+        // 开启服务器监听
+        __weak typeof(self) ws = self;
+        [[HYServerManager shared] startServerForListeningSuccessed:^(NSString *ip, int port) {
+            ws.serverLb.text = [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port];
+        } failed:^(NSError *error) {
+            NSLog(@"****HY Error:客户端连接失败");
+            ws.serverLb.text = error.domain;
+        }];
+    }
+    // 刷新端口号
+    else if (sender.tag == 110) {
+        [[HYServerManager shared] stopListeningPort];
         
         // 开启服务器监听
         __weak typeof(self) ws = self;
@@ -164,6 +183,22 @@
     }
     
     return _serverLb;
+}
+
+// 刷新服务器端口号
+- (UIButton *)refreshPortBtn {
+    if (_refreshPortBtn == nil) {
+        _refreshPortBtn = [UIButton new];
+        [_refreshPortBtn setTitle:@"刷新端口号" forState:UIControlStateNormal];
+        [_refreshPortBtn setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+        _refreshPortBtn.titleLabel.font = [UIFont systemFontOfSize:15.f];
+        _refreshPortBtn.layer.borderColor = [UIColor blackColor].CGColor;
+        _refreshPortBtn.layer.borderWidth = 1.f;
+        _refreshPortBtn.tag = 110;
+        [_refreshPortBtn addTarget:self action:@selector(_didClickButton:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    
+    return _refreshPortBtn;
 }
 
 // 选择按钮（客户端）

@@ -83,22 +83,33 @@
     if ([msg isKindOfClass:[NSString class]]) {
         // 序列化
         NSData *msgData = [msg dataUsingEncoding:NSUTF8StringEncoding];
+        // 消息的命令和长度
         uint32_t length = htonl(msgData.length);
-        NSMutableData *lengthData = [NSMutableData dataWithBytes:&length length:DATALENGTH_SIZE];
-        [lengthData appendData:msgData];
+        uint16_t cmd = htons(kCommandNormal);
+        
+        NSMutableData *cmdTypeData = [NSMutableData dataWithBytes:&cmd length:kSocketCmdLength];
+        NSData *lengthData = [NSData dataWithBytes:&length length:kDataLengthSize];
+        [cmdTypeData appendData:lengthData];
+        [cmdTypeData appendData:msgData];
         
         // 发送数据
-        [self.asyncSocket writeData:lengthData asyncQueue:_processQueue direct:NO completion:completion];
+        [self.asyncSocket writeData:cmdTypeData asyncQueue:_processQueue direct:YES completion:completion];
     }
     // 文件类型
     else if ([msg isKindOfClass:[NSData class]]) {
+        // 序列化
         NSData *temp = msg;
+        // 消息的命令和长度
         uint32_t length = htonl(temp.length);
-        NSMutableData *lengthData = [NSMutableData dataWithBytes:&length length:DATALENGTH_SIZE];
-        [lengthData appendData:msg];
+        uint16_t cmd = htons(kCommandFile);
+
+        NSMutableData *cmdTypeData = [NSMutableData dataWithBytes:&cmd length:kSocketCmdLength];
+        NSData *lengthData = [NSData dataWithBytes:&length length:kDataLengthSize];
+        [cmdTypeData appendData:lengthData];
+        [cmdTypeData appendData:temp];
         
         // 发送数据
-        [self.asyncSocket writeData:lengthData asyncQueue:_processQueue direct:NO completion:completion];
+        [self.asyncSocket writeData:cmdTypeData asyncQueue:_processQueue direct:NO completion:completion];
     }
     // 未知
     else {
@@ -150,6 +161,13 @@
         
         [_checkTimer invalidate];
         [_sendTimer invalidate];
+        
+        // 服务端的客户端
+        if (_asyncSocket.socketType == HYSocketTypeOneClient && _asyncSocket.server) {
+            if ([_asyncSocket.server.clientList containsObject:_asyncSocket]) {
+                [_asyncSocket.server.clientList removeObject:_asyncSocket];
+            }
+        }
         
         _asyncSocket = nil;
     }
@@ -256,7 +274,7 @@
 // 接收数据
 - (void)onSocket:(HYSocket *)socket didReceiveData:(NSData *)data originBuff:(uint8_t *)buff {
     
-    if (data.length >= sizeof(uint16_t)) {
+    if (data.length >= kSocketCmdLength) {
         // 上一个包存在半包，且不是递归
         if (socket && _receiveDatas.length > 0) {
             [_receiveDatas appendData:data];
@@ -267,39 +285,46 @@
         [_receiveDatas resetBytesInRange:NSMakeRange(0, data.length)];
         [_receiveDatas setLength:0];
         
-        // 心跳包
+        // 命令类型
         uint16_t command = [self _commandWithData:data];
+        // 心跳包
         if (command == kCommandHeartbeat) {
             _heartbeatStamp = [[NSDate date] timeIntervalSince1970];
             // 递归解析
-            if (data.length > sizeof(command)) {
-                [self onSocket:nil didReceiveData:[data subdataWithRange:NSMakeRange(sizeof(command), data.length - sizeof(command))] originBuff:nil];
+            if (data.length > kSocketCmdLength) {
+                [self onSocket:nil didReceiveData:[data subdataWithRange:NSMakeRange(kSocketCmdLength, data.length - kSocketCmdLength)] originBuff:nil];
             }
             return ;
         }
         
-        // 获取数据长度
-        uint32_t dataLength;
-        [data getBytes:&dataLength range:NSMakeRange(0, DATALENGTH_SIZE)];
-        dataLength = ntohl(dataLength);
-        
-        // 完整数据包
-        if (data.length > DATALENGTH_SIZE && dataLength == data.length - DATALENGTH_SIZE) {
-            // 分发数据
-            if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:service:)]) {
-                [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE, dataLength)] service:self];
+        if (data.length > kSocketCmdLength + kDataLengthSize) {
+            // 获取数据长度
+            uint32_t dataLength;
+            [data getBytes:&dataLength range:NSMakeRange(kSocketCmdLength, kDataLengthSize)];
+            dataLength = ntohl(dataLength);
+            
+            // 完整数据包
+            if (dataLength == data.length - kSocketCmdLength - kDataLengthSize) {
+                // 分发数据
+                if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:service:)]) {
+                    [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(kSocketCmdLength + kDataLengthSize, dataLength)] service:self];
+                }
             }
-        }
-        // 粘包
-        else if (data.length > DATALENGTH_SIZE && dataLength < data.length - DATALENGTH_SIZE) {
-            // 分发完整数据
-            if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:service:)]) {
-                [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE, dataLength)] service:self];
+            // 粘包
+            else if (dataLength < data.length - kSocketCmdLength - kDataLengthSize) {
+                // 分发完整数据
+                if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:service:)]) {
+                    [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(kDataLengthSize + kSocketCmdLength, dataLength)] service:self];
+                }
+                // 剪裁数据
+                [_receiveDatas appendData:[data subdataWithRange:NSMakeRange(kSocketCmdLength + kDataLengthSize + dataLength, data.length - (kSocketCmdLength + kDataLengthSize + dataLength))]];;
+                // 递归解析
+                [self onSocket:nil didReceiveData:[_receiveDatas copy] originBuff:nil];
             }
-            // 剪裁数据
-            [_receiveDatas appendData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE + dataLength, data.length - (DATALENGTH_SIZE + dataLength))]];;
-            // 递归解析
-            [self onSocket:nil didReceiveData:[_receiveDatas copy] originBuff:nil];
+            // 半包
+            else {
+                [_receiveDatas appendData:data];
+            }
         }
         // 半包
         else {
@@ -356,6 +381,7 @@
     else {
         HYSocketService *newServeice = [[HYSocketService alloc] init];
         newServeice.asyncSocket = socket;
+        newServeice.asyncSocket.delegate = newServeice;
         newServeice.delegate = _clientDelegate;
         newServeice.indexTag = self.asyncSocket.clientList.count - 1;
         [newServeice _startRunLoopForHeartbeat];
@@ -400,11 +426,8 @@
     dispatch_async(_heartbeatQueue, ^{
         [self _sendHeartbeatMessage];
         [[NSRunLoop currentRunLoop] addTimer:_sendTimer forMode:NSRunLoopCommonModes];
-        [[NSRunLoop currentRunLoop] run];
-    });
-    
-    dispatch_async(_streamQueue, ^{
         [[NSRunLoop currentRunLoop] addTimer:_checkTimer forMode:NSRunLoopCommonModes];
+        [[NSRunLoop currentRunLoop] run];
     });
 }
 
