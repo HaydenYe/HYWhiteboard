@@ -8,6 +8,7 @@
 
 #import "HYConversationManager.h"
 #import "HYSocketService.h"
+#import "HYWbPoint.h"
 
 @interface HYConversationManager () <HYSocketServiceDelegate>
 
@@ -66,13 +67,13 @@
 }
 
 // 发送画点的消息
-- (void)sendPointMsg:(CGPoint)point isEraser:(BOOL)isEraser {
-    NSString *msg = [NSString stringWithFormat:kMsgPointFormatter, isEraser ? HYMessageCmdEraserPoint : HYMessageCmdDrawPoint, point.x, point.y];
+- (void)sendPointMsg:(HYWbPoint *)point {
+    NSString *msg = [NSString stringWithFormat:kMsgPointFormatter, point.isEraser ? HYMessageCmdEraserPoint : HYMessageCmdDrawPoint, point.xScale, point.yScale, (uint8_t)point.type];
     [_cmdBuff addObject:msg];
 }
 
 // 发送画笔样式
-- (void)sendPenStyleColor:(NSInteger)colorIndex lineWidth:(NSInteger)lineIndex {
+- (void)sendPenStyleColor:(uint8_t)colorIndex lineWidth:(uint8_t)lineIndex {
     NSString *msg = [NSString stringWithFormat:kMsgPenFormatter, HYMessageCmdPenStyle, colorIndex, lineIndex];
     [_cmdBuff addObject:msg];
 }
@@ -111,9 +112,9 @@
             
         // 橡皮
         case HYMessageCmdEraserPoint:{
-            if (_converDelegate && [_converDelegate respondsToSelector:@selector(onReceivePoint:isEraser:)]) {
+            if (_converDelegate && [_converDelegate respondsToSelector:@selector(onReceivePoint:type:isEraser:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [_converDelegate onReceivePoint:CGPointMake([dataArr[1] floatValue], [dataArr[2] floatValue]) isEraser:cmd == HYMessageCmdDrawPoint ? NO : YES];
+                    [_converDelegate onReceivePoint:CGPointMake([dataArr[1] floatValue], [dataArr[2] floatValue]) type:[dataArr[3] intValue] isEraser:cmd == HYMessageCmdDrawPoint ? NO : YES];
                 });
             }
             break ;

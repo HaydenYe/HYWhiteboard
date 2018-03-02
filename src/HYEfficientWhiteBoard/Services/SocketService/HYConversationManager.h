@@ -9,13 +9,13 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
-@class HYSocketService;
+@class HYSocketService, HYWbPoint;
 
 #define kTimeIntervalSendCmd    0.06f   // 发送命令的时间间隔
 
-#define kMsgPointFormatter      @"%zd,%f,%f"    // 画点的命令:@"HYMessageCmd,point.x,point.y"
-#define kMsgPenFormatter        @"%zd,%zd,%zd"  // 画笔的命令:@"HYMessageCmd,color,lineWidth"
-#define kMsgEidtFormatter       @"%zd"          // 编辑的动作:@"HYMessageCmd"
+#define kMsgPointFormatter      @"%zd,%f,%f,%d"  // 画点的命令:@"HYMessageCmd,point.x,point.y,type"
+#define kMsgPenFormatter        @"%zd,%d,%d"     // 画笔的命令:@"HYMessageCmd,colorIndex,lineWidth"
+#define kMsgEidtFormatter       @"%zd"           // 编辑的动作:@"HYMessageCmd"
 
 typedef NS_ENUM(NSUInteger, HYMessageCmd) {
     HYMessageCmdNone = 0,           // 占位
@@ -36,20 +36,22 @@ typedef NS_ENUM(NSUInteger, HYMessageCmd) {
  接收到画点消息
  
  @param point       画线的点
+ @param type        画线的点的类型
  @param isEraser    是否为橡皮擦
  */
 - (void)onReceivePoint:(CGPoint)point
+                  type:(uint8_t)type
               isEraser:(BOOL)isEraser;
 
 
 /**
  接收到画笔样式
  
- @param colorIndex  画笔的颜色
- @param widthIndex  画笔的粗细
+ @param colorIndex  画笔的颜色的索引
+ @param lineWidth   画笔的粗细
  */
 - (void)onReceivePenColor:(NSInteger)colorIndex
-                lineWidth:(NSInteger)widthIndex;
+                lineWidth:(NSInteger)lineWidth;
 
 
 /**
@@ -92,20 +94,18 @@ typedef NS_ENUM(NSUInteger, HYMessageCmd) {
  发送画点的消息
 
  @param point       画点的信息
- @param isEraser    是否为橡皮擦
  */
-- (void)sendPointMsg:(CGPoint)point
-            isEraser:(BOOL)isEraser;
+- (void)sendPointMsg:(HYWbPoint *)point;
 
 
 /**
  发送画笔样式
 
  @param colorIndex  画笔颜色索引
- @param lineIndex   画笔粗细索引
+ @param lineWidth   画笔粗细
  */
-- (void)sendPenStyleColor:(NSInteger)colorIndex
-                lineWidth:(NSInteger)lineIndex;
+- (void)sendPenStyleColor:(uint8_t)colorIndex
+                lineWidth:(uint8_t)lineWidth;
 
 
 /**

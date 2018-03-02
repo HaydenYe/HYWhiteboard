@@ -9,8 +9,9 @@
 #import "HYWhiteboardViewController.h"
 #import "HYColorPanel.h"
 #import "HYWhiteboardView.h"
+#import "HYConversationManager.h"
 
-@interface HYWhiteboardViewController () <HYColorPanelDelegate, HYWbDataSource>
+@interface HYWhiteboardViewController () <HYColorPanelDelegate, HYWbDataSource, HYConversationDelegate>
 
 @property (nonatomic, strong)HYColorPanel       *colorPanel;    // 颜色盘
 @property (nonatomic, strong)HYWhiteboardView   *wbView;        // 白板视图
@@ -23,6 +24,8 @@
 @property (nonatomic, assign)BOOL               isEraser;       // 是否为橡皮模式
 @property (nonatomic, assign)BOOL               needUpdate;     // 需要更新白板视图
 
+@property (nonatomic, assign)BOOL               drawable;       // 是否可以画线
+
 @end
 
 @implementation HYWhiteboardViewController
@@ -31,6 +34,8 @@
     [super viewDidLoad];
     self.title = @"白板";
     self.view.backgroundColor = [UIColor whiteColor];
+    
+    [HYConversationManager shared].converDelegate = self;
     
     [self _configOwnViews];
     
@@ -79,6 +84,7 @@
         case 14:{
             _lineColorIndex = button.tag - 10;
             _isEraser = NO;
+            [[HYConversationManager shared] sendPenStyleColor:_lineColorIndex lineWidth:_lineWidth];
             break;
         }
             
@@ -86,6 +92,7 @@
         case 15:{
             _lineColorIndex = button.tag - 10;
             _isEraser = YES;
+            [[HYConversationManager shared] sendPenStyleColor:_lineColorIndex lineWidth:_lineWidth];
             break;
         }
         
@@ -94,6 +101,7 @@
         case 21:
         case 22:{
             _lineWidth = [_colorPanel.lineWidthArr[button.tag - 20] integerValue];
+            [[HYConversationManager shared] sendPenStyleColor:_lineColorIndex lineWidth:_lineWidth];
             break;
         }
             
@@ -104,6 +112,8 @@
                 [_cancelLines addObject:line];
                 [_allLines[UserOfLinesMine] removeObject:line];
                 _needUpdate = YES;
+                
+                [[HYConversationManager shared] sendEditAction:HYMessageCmdCancel];
             }
             break;
         }
@@ -114,17 +124,82 @@
                 [_allLines[UserOfLinesMine] addObject:_cancelLines.lastObject];
                 [_cancelLines removeObjectAtIndex:_cancelLines.count - 1];
                 _needUpdate = YES;
+                
+                [[HYConversationManager shared] sendEditAction:HYMessageCmdResume];
             }
             break;
         }
             
         // 清除
         case 25:{
+            if (_allLines.count) {
+                [_allLines removeAllObjects];
+                _needUpdate = YES;
+                
+                [[HYConversationManager shared] sendEditAction:HYMessageCmdClearAll];
+            }
+            break;
+        }
+        
+        default:
+            break;
+    }
+}
+
+
+#pragma mark - HYConversationDelegate
+
+// 接收到画线的点
+- (void)onReceivePoint:(CGPoint)point type:(uint8_t)type isEraser:(BOOL)isEraser {
+    
+    // 同时只能绘制一个人的画线
+    if ((HYWbPointType)type == HYWbPointTypeEnd) {
+        _drawable = YES;
+    }
+    else {
+        _drawable = NO;
+    }
+    
+    [self _onPointCollected:point type:(HYWbPointType)type isEraser:isEraser];
+}
+
+// 接收到画笔颜色、宽度
+- (void)onReceivePenColor:(NSInteger)colorIndex lineWidth:(NSInteger)lineWidth {
+    _lineWidth = lineWidth;
+    _lineColorIndex = colorIndex;
+}
+
+// 接收到撤销，恢复，全部擦除消息
+- (void)onReceiveEditAction:(HYMessageCmd)type {
+    switch (type) {
+        // 撤销
+        case HYMessageCmdCancel:{
+            if (_allLines[UserOfLinesOther] && [_allLines[UserOfLinesOther] count]) {
+                NSArray *line = [_allLines[UserOfLinesOther] lastObject];
+                [_cancelLines addObject:line];
+                [_allLines[UserOfLinesMine] removeObject:line];
+                _needUpdate = YES;
+            }
+            break;
+        }
+            
+        // 恢复
+        case HYMessageCmdResume:{
+            if (_cancelLines.count) {
+                [_allLines[UserOfLinesOther] addObject:_cancelLines.lastObject];
+                [_cancelLines removeObjectAtIndex:_cancelLines.count - 1];
+                _needUpdate = YES;
+            }
+            break;
+        }
+            
+        // 清除
+        case HYMessageCmdClearAll:{
             [_allLines removeAllObjects];
             _needUpdate = YES;
             break;
         }
-        
+            
         default:
             break;
     }
@@ -151,6 +226,8 @@
     
     _allLines = [NSMutableDictionary new];
     _cancelLines = [NSMutableArray new];
+    
+    _drawable = YES;
 }
 
 // 添加所有的手势
@@ -163,6 +240,12 @@
 
 // 画线手势
 - (void)_onPanGesture:(UIPanGestureRecognizer *)panGestureRecognizer {
+    
+    // 是否正在渲染别人的画线
+    if (_drawable == NO) {
+        return ;
+    }
+    
     CGPoint p = [panGestureRecognizer locationInView:panGestureRecognizer.view];
     
     // 画线之后无法恢复撤销的线
@@ -170,19 +253,19 @@
     
     switch (panGestureRecognizer.state) {
         case UIGestureRecognizerStateBegan:
-            [self _onPointCollected:p type:HYWbPointTypeStart];
+            [[HYConversationManager shared] sendPointMsg:[self _onPointCollected:p type:HYWbPointTypeStart isEraser:_isEraser]];
             break;
         case UIGestureRecognizerStateChanged:
-            [self _onPointCollected:p type:HYWbPointTypeMove];
+            [[HYConversationManager shared] sendPointMsg:[self _onPointCollected:p type:HYWbPointTypeMove isEraser:_isEraser]];
             break;
         default:
-            [self _onPointCollected:p type:HYWbPointTypeEnd];
+            [[HYConversationManager shared] sendPointMsg:[self _onPointCollected:p type:HYWbPointTypeEnd isEraser:_isEraser]];
             break;
     }
 }
 
 // 收集画线的点
-- (void)_onPointCollected:(CGPoint)p type:(HYWbPointType)type  {
+- (HYWbPoint *)_onPointCollected:(CGPoint)p type:(HYWbPointType)type isEraser:(BOOL)isEraser {
     HYWbPoint *point = [HYWbPoint new];
     point.type = type;
     point.xScale = (p.x)/_wbView.frame.size.width;
@@ -192,10 +275,12 @@
     [self _addPoint:point userId:UserOfLinesMine];
     
     // 橡皮擦直接渲染到视图上
-    if (_isEraser) {
+    if (isEraser) {
         point.isEraser = YES;
         [_wbView drawEraserLineByPoint:point];
     }
+    
+    return point;
 }
 
 // 保存点

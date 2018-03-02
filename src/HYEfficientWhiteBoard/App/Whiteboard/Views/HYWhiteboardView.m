@@ -14,12 +14,12 @@ NSString *const UserOfLinesMine = @"Mine";      // 自己画线的key
 NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 
 
-@interface HYWhiteboardView () <HYCADisplayLinkHolderDelegate, CALayerDelegate>
+@interface HYWhiteboardView () <HYCADisplayLinkHolderDelegate>
 
 @property (nonatomic, strong)HYCADisplayLinkHolder  *displayLinkHolder;     // 渲染的计时器
 
 @property (nonatomic, strong)CAShapeLayer           *realTimeLy;            // 实时显示层
-@property (nonatomic, assign)CGPoint                controlPoint;           // 贝塞尔曲线的控制点
+@property (nonatomic, assign)CGPoint                controlPoint;           // 二阶贝塞尔曲线的控制点
 
 @property (nonatomic, assign)BOOL                   isEraserLine;           // 是否正在渲染橡皮画线
 @property (nonatomic, assign)CGPoint                lastEraserPoint;        // 上一个橡皮的画点
@@ -31,15 +31,12 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 
 - (instancetype)init {
     if (self = [super init]) {
-        CAShapeLayer *shapeLayer = (CAShapeLayer *)self.layer;
-        shapeLayer.masksToBounds = YES;
-        self.layer.delegate = self;
-        
+        self.layer.contentsScale = [UIScreen mainScreen].scale;
         self.backgroundColor = [UIColor clearColor];
         
-        // 设置刷新率，1秒30帧
+        // 设置刷新率，1秒60帧
         _displayLinkHolder = [HYCADisplayLinkHolder new];
-        [_displayLinkHolder setFrameInterval:2];
+        [_displayLinkHolder setFrameInterval:1];
         [_displayLinkHolder startCADisplayLinkWithDelegate:self];
         
         _controlPoint = CGPointZero;
@@ -54,6 +51,11 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 
 + (Class)layerClass {
     return [CAShapeLayer class];
+}
+
+// 重绘所有画线在视图层
+- (void)drawRect:(CGRect)rect {
+    [self _drawLines];
 }
 
 // 打开或停止渲染画线的计时器
@@ -93,18 +95,13 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 // 渲染橡皮画线
 - (void)drawEraserPoint:(CGPoint)point lineWidth:(NSInteger)width {
     CGFloat lineWidth = width * 2.f / 1.414f;
+    
+    // 只重绘局部，提高效率
     CGRect brushRect = CGRectMake(point.x - lineWidth /2.f, point.y - lineWidth/2.f, lineWidth, lineWidth);
     [self.layer setNeedsDisplayInRect:brushRect];
+    
+    // 十分关键，需要立即渲染
     [self.layer display];
-}
-
-
-#pragma mark - CALayerDelegate
-
-- (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)ctx {
-    UIGraphicsPushContext(ctx);
-    [self _drawLines];
-    UIGraphicsPopContext();
 }
 
 
@@ -120,7 +117,6 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
         
         // 清除画线的渲染
         if (lines.count <= 0) {
-            [self setNeedsDisplay];
             [self.layer setNeedsDisplay];
             self.realTimeLy.hidden = YES;
             return;
@@ -145,7 +141,6 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
         // 如果是最后一个点，更新视图层，将线画到视图层
         HYWbPoint *theLastPoint = [currentLine lastObject];
         if (theLastPoint.type == HYWbPointTypeEnd) {
-            [self setNeedsDisplay];
             [self.layer setNeedsDisplay];
             _realTimeLy.hidden = YES;
         }
@@ -181,7 +176,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     path.lineCapStyle = firstPoint.isEraser ? kCGLineCapSquare : kCGLineCapRound;
     
     // 画线颜色
-    UIColor *lineColor = firstPoint.isEraser ? [UIColor clearColor] : [_dataSource colorArr][firstPoint.colorIndex];
+    UIColor *lineColor = [_dataSource colorArr][firstPoint.colorIndex];
     
     // 生成贝塞尔曲线
     for (HYWbPoint *point in line) {
@@ -190,7 +185,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
         if (point.type == HYWbPointTypeStart) {
             [path moveToPoint:p];
         }
-        // 优化曲线的圆滑度
+        // 优化曲线的圆滑度，二阶贝塞尔
         else {
             if (_controlPoint.x != p.x || _controlPoint.y != p.y) {
                 [path addQuadCurveToPoint:CGPointMake((_controlPoint.x + p.x) / 2, (_controlPoint.y + p.y) / 2) controlPoint:_controlPoint];

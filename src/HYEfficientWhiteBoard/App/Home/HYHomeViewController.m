@@ -12,7 +12,7 @@
 
 #import "HYWhiteboardViewController.h"
 
-@interface HYHomeViewController () <UITextFieldDelegate>
+@interface HYHomeViewController () <UITextFieldDelegate, HYServerDelegate>
 
 @property (nonatomic, strong)UIButton    *serverBtn;     // 选择按钮
 @property (nonatomic, strong)UILabel     *serverLb;      // 显示服务器ip地址
@@ -42,7 +42,18 @@
 }
 
 
+#pragma mark - HYServerDelegate
+
+// 有客户端连接
+- (void)onServerAcceptNewClient {
+    // 跳转白板页面
+    HYWhiteboardViewController *vc = [HYWhiteboardViewController new];
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
+
 #pragma mark - UITextFieldDelegate
+
 // 输入ip地址完成
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     [self.view endEditing:YES];
@@ -73,6 +84,7 @@
 
 
 #pragma mark - Private methods
+
 // 设置子视图
 - (void)_configOwnViews {
     self.serverBtn.frame = CGRectMake(0, 225.f, [UIScreen mainScreen].bounds.size.width, 44.f);
@@ -87,11 +99,14 @@
 // 选择按钮点击事件
 - (void)_didClickButton:(UIButton *)sender {
     
-    _serverBtn.hidden = YES;
-    _clientBtn.hidden = YES;
-    
     // 服务器
     if (sender.tag == 100) {
+        _serverBtn.hidden = YES;
+        _clientBtn.hidden = YES;
+        _whiteboardBtn.hidden = YES;
+        
+        [HYServerManager shared].serverDelegate = self;
+        
         self.serverLb.frame = CGRectMake(0, 250.f, [UIScreen mainScreen].bounds.size.width, 44.f);
         [self.view addSubview:_serverLb];
         
@@ -106,6 +121,10 @@
     }
     // 客户端
     else if (sender.tag == 200) {
+        _serverBtn.hidden = YES;
+        _clientBtn.hidden = YES;
+        _whiteboardBtn.hidden = YES;
+        
         self.clientTf.frame = CGRectMake(0, 250.f, [UIScreen mainScreen].bounds.size.width, 44.f);
         [self.view addSubview:_clientTf];
         [_clientTf becomeFirstResponder];
@@ -119,6 +138,7 @@
 
 
 #pragma mark - Property
+
 // 选择按钮（服务器）
 - (UIButton *)serverBtn {
     if (_serverBtn == nil) {

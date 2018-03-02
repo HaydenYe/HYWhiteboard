@@ -74,6 +74,11 @@
 // 发送消息
 - (void)sendMessage:(id)msg completion:(void (^)(BOOL, NSUInteger))completion {
     
+    // 无网络
+    if (self.asyncSocket.isConnected == NO) {
+        return ;
+    }
+    
     // 消息类型
     if ([msg isKindOfClass:[NSString class]]) {
         // 序列化
