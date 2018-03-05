@@ -16,7 +16,7 @@
 
 @property (nonatomic, strong)UIButton    *serverBtn;     // 选择按钮
 @property (nonatomic, strong)UILabel     *serverLb;      // 显示服务器ip地址
-@property (nonatomic, strong)UIButton    *refreshPortBtn;   // 刷新端口号
+@property (nonatomic, strong)UIButton    *refreshPortBtn;// 刷新端口号
 
 @property (nonatomic, strong)UIButton    *clientBtn;     // 选择按钮
 @property (nonatomic, strong)UITextField *clientTf;      // 输入连接服务器的地址
@@ -54,6 +54,15 @@
 
 
 #pragma mark - UITextFieldDelegate
+
+- (BOOL)textFieldShouldBeginEditing:(UITextField *)textField {
+    
+    if (textField.text.length < 1) {
+        textField.text = [HYSocketService getIPAddress:YES];
+    }
+    
+    return YES;
+}
 
 // 输入ip地址完成
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
@@ -116,26 +125,42 @@
         self.refreshPortBtn.frame = CGRectMake(0, 300.f, [UIScreen mainScreen].bounds.size.width, 44.f);
         [self.view addSubview:_refreshPortBtn];
         
+        // 开启上传服务器监听
+        [[HYServerManager shared] startServerForListeningUpload:YES successed:^(NSString *ip, int port) {
+            NSLog(@"HY 上传地址：%@", [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port]);
+        } failed:^(NSError *error) {
+            NSLog(@"****HY Error:监听上传端口失败");
+        }];
+        
         // 开启服务器监听
         __weak typeof(self) ws = self;
-        [[HYServerManager shared] startServerForListeningSuccessed:^(NSString *ip, int port) {
+        [[HYServerManager shared] startServerForListeningUpload:NO successed:^(NSString *ip, int port) {
             ws.serverLb.text = [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port];
         } failed:^(NSError *error) {
-            NSLog(@"****HY Error:客户端连接失败");
+            NSLog(@"****HY Error:监听会话端口失败");
             ws.serverLb.text = error.domain;
         }];
+        
+        
     }
     // 刷新端口号
     else if (sender.tag == 110) {
         [[HYServerManager shared] stopListeningPort];
         
-        // 开启服务器监听
+        // 开启会话服务器监听
         __weak typeof(self) ws = self;
-        [[HYServerManager shared] startServerForListeningSuccessed:^(NSString *ip, int port) {
+        [[HYServerManager shared] startServerForListeningUpload:NO successed:^(NSString *ip, int port) {
             ws.serverLb.text = [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port];
         } failed:^(NSError *error) {
-            NSLog(@"****HY Error:客户端连接失败");
+            NSLog(@"****HY Error:监听会话端口失败");
             ws.serverLb.text = error.domain;
+        }];
+        
+        // 开启上传服务器监听
+        [[HYServerManager shared] startServerForListeningUpload:YES successed:^(NSString *ip, int port) {
+            NSLog(@"HY 上传地址：%@", [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port]);
+        } failed:^(NSError *error) {
+            NSLog(@"****HY Error:监听上传端口失败");
         }];
     }
     // 客户端
@@ -146,7 +171,6 @@
         
         self.clientTf.frame = CGRectMake(0, 250.f, [UIScreen mainScreen].bounds.size.width, 44.f);
         [self.view addSubview:_clientTf];
-        [_clientTf becomeFirstResponder];
     }
     // 直接进入白板
     else {

@@ -379,15 +379,15 @@
         NSLog(@"****HY Error:%@ Code:%zd", error.domain, error.code);
     }
     else {
-        HYSocketService *newServeice = [[HYSocketService alloc] init];
-        newServeice.asyncSocket = socket;
-        newServeice.asyncSocket.delegate = newServeice;
-        newServeice.delegate = _clientDelegate;
-        newServeice.indexTag = self.asyncSocket.clientList.count - 1;
-        [newServeice _startRunLoopForHeartbeat];
+        HYSocketService *newservice = [[HYSocketService alloc] init];
+        newservice.asyncSocket = socket;
+        newservice.asyncSocket.delegate = newservice;
+        newservice.delegate = _clientDelegate;
+        newservice.indexTag = self.asyncSocket.clientList.count - 1;
+        [newservice _startRunLoopForHeartbeat];
         
         if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceAcceptNewClient:server:)]) {
-            [_delegate onSocketServiceAcceptNewClient:newServeice server:self];
+            [_delegate onSocketServiceAcceptNewClient:newservice server:self];
         }
     }
 }

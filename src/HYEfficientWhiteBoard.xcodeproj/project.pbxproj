@@ -22,6 +22,8 @@
 		18E6D7A71F99D753001F208C /* HYHomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 18E6D7A61F99D753001F208C /* HYHomeViewController.m */; };
 		18E6D7AE1F99E26D001F208C /* HYSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = 18E6D7AC1F99E26D001F208C /* HYSocket.m */; };
 		18FA86FC1F99EAFD00453DCB /* HYSocketService.m in Sources */ = {isa = PBXBuildFile; fileRef = 18FA86FB1F99EAFD00453DCB /* HYSocketService.m */; };
+		BC1B4592204A3ED100DC68C6 /* HYUploadManager.m in Sources */ = {isa = PBXBuildFile; fileRef = BC1B4591204A3ED100DC68C6 /* HYUploadManager.m */; };
+		BC1B459A204A9EFC00DC68C6 /* 50.4M.png in Resources */ = {isa = PBXBuildFile; fileRef = BC1B4599204A9EFB00DC68C6 /* 50.4M.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +77,9 @@
 		18E6D7AC1F99E26D001F208C /* HYSocket.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HYSocket.m; sourceTree = "<group>"; };
 		18FA86FA1F99EAFD00453DCB /* HYSocketService.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYSocketService.h; sourceTree = "<group>"; };
 		18FA86FB1F99EAFD00453DCB /* HYSocketService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYSocketService.m; sourceTree = "<group>"; };
+		BC1B4590204A3ED100DC68C6 /* HYUploadManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYUploadManager.h; sourceTree = "<group>"; };
+		BC1B4591204A3ED100DC68C6 /* HYUploadManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYUploadManager.m; sourceTree = "<group>"; };
+		BC1B4599204A9EFB00DC68C6 /* 50.4M.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = 50.4M.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,6 +159,7 @@
 		18E6D79B1F99D5B4001F208C /* SupportingFiles */ = {
 			isa = PBXGroup;
 			children = (
+				BC1B4599204A9EFB00DC68C6 /* 50.4M.png */,
 				18E6D7691F99D435001F208C /* AppDelegate.h */,
 				18E6D76A1F99D435001F208C /* AppDelegate.m */,
 				18E6D7721F99D435001F208C /* Assets.xcassets */,
@@ -257,6 +263,8 @@
 				18D53BC02043ECBB003E7526 /* HYServerManager.m */,
 				18AE0F191F9F27D2004AFC2E /* HYConversationManager.h */,
 				18AE0F1A1F9F27D2004AFC2E /* HYConversationManager.m */,
+				BC1B4590204A3ED100DC68C6 /* HYUploadManager.h */,
+				BC1B4591204A3ED100DC68C6 /* HYUploadManager.m */,
 			);
 			path = SocketService;
 			sourceTree = "<group>";
@@ -367,6 +375,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BC1B459A204A9EFC00DC68C6 /* 50.4M.png in Resources */,
 				18E6D7731F99D435001F208C /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -400,6 +409,7 @@
 				182C922E204556DF001AF957 /* HYColorPanel.m in Sources */,
 				18E6D7A71F99D753001F208C /* HYHomeViewController.m in Sources */,
 				18E6D7AE1F99E26D001F208C /* HYSocket.m in Sources */,
+				BC1B4592204A3ED100DC68C6 /* HYUploadManager.m in Sources */,
 				18FA86FC1F99EAFD00453DCB /* HYSocketService.m in Sources */,
 				182C92322046BC6D001AF957 /* HYWhiteboardView.m in Sources */,
 				18E6D76B1F99D435001F208C /* AppDelegate.m in Sources */,

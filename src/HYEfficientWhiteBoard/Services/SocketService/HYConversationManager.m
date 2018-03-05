@@ -7,12 +7,11 @@
 //
 
 #import "HYConversationManager.h"
-#import "HYSocketService.h"
 #import "HYWbPoint.h"
 
 @interface HYConversationManager () <HYSocketServiceDelegate>
 
-@property (nonatomic, strong)HYSocketService    *serveice;
+@property (nonatomic, strong)HYSocketService    *service;
 @property (nonatomic, copy)NSString             *host;
 @property (nonatomic, assign)int                port;
 
@@ -40,14 +39,26 @@
 
 // 连接服务端
 - (void)connectWhiteboardServer:(NSString *)host port:(int)port successed:(void (^)(HYSocketService *))successd failed:(void (^)(NSError *))failed {
+    
+    // 服务器地址错误
+    NSError *error = nil;
+    if ((error = [self.service isValidAddress:host port:port])) {
+        if (failed) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                failed(error);
+            });
+        }
+        return ;
+    }
+    
     _host = host;
     _port = port;
     
     __weak typeof(self) ws = self;
-    [self.serveice connectToHost:host onPort:port forUpload:NO completion:^(NSError *error) {
+    [_service connectToHost:host onPort:port forUpload:NO completion:^(NSError *error) {
         if (error) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                ws.serveice = nil;
+                ws.service = nil;
                 if (failed) {
                     failed(error);
                 }
@@ -57,7 +68,7 @@
             ws.isConnected = YES;
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (successd) {
-                    successd(ws.serveice);
+                    successd(ws.service);
                 }
                 
                 [ws _startSendingCmd];
@@ -68,7 +79,7 @@
 
 // 添加新客户端的服务
 - (void)addNewClient:(HYSocketService *)clientService {
-    _serveice = clientService;
+    _service = clientService;
     [self _startSendingCmd];
 }
 
@@ -92,15 +103,15 @@
 
 // 断开连接
 - (void)disconnectWhiteboard {
-    [_serveice disconnectService];
+    [_service disconnectService];
     _converDelegate = nil;
-    _serveice = nil;
+    _service = nil;
     
     _isConnected = NO;
 }
 
 
-#pragma mark - ArtSocketServiceDelegate
+#pragma mark - HYSocketServiceDelegate
 
 // 新消息
 - (void)onSocketServiceDidReceiveData:(NSData *)msgData service:(HYSocketService *)service {
@@ -165,7 +176,7 @@
 
 // 断线
 - (void)onSocketServiceDidDisconnect:(HYSocketService *)service {
-    _serveice = nil;
+    _service = nil;
     
     if (_isConnected) {
         _isConnected = NO;
@@ -177,7 +188,9 @@
     }
     
     if (_converDelegate && [_converDelegate respondsToSelector:@selector(onNetworkDisconnect)]) {
-        [_converDelegate onNetworkDisconnect];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [_converDelegate onNetworkDisconnect];
+        });
     }
 }
 
@@ -185,13 +198,13 @@
 #pragma mark - Property getter and setter
 
 // socket
-- (HYSocketService *)serveice {
-    if (_serveice == nil) {
-        _serveice = [HYSocketService new];
-        _serveice.delegate = self;
-        _serveice.indexTag = 0;
+- (HYSocketService *)service {
+    if (_service == nil) {
+        _service = [HYSocketService new];
+        _service.delegate = self;
+        _service.indexTag = 200;
     }
-    return _serveice;
+    return _service;
 }
 
 
@@ -200,10 +213,9 @@
 
 // 发送消息
 - (void)_sendWhiteboardMessage:(NSString *)msg successed:(void (^)(NSString *))successed failed:(void (^)(NSInteger))failed {
-    [self.serveice sendMessage:msg completion:^(BOOL success, NSUInteger length) {
+    [self.service sendMessage:msg completion:^(BOOL success, NSUInteger length) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if (success) {
-//                NSLog(@"YHP send command:%zd", type);
                 if (successed) {
                     successed(msg);
                 }

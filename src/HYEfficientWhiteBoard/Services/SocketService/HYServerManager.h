@@ -23,8 +23,9 @@
 
 @interface HYServerManager : NSObject
 
-@property (nonatomic, strong, readonly)HYSocketService *serveice;
-@property (nonatomic, weak)id<HYServerDelegate>        serverDelegate;
+@property (nonatomic, strong, readonly)HYSocketService *conService;        // 会话服务器的服务
+@property (nonatomic, strong, readonly)HYSocketService *uploadService;     // 上传文件服务器的服务
+@property (nonatomic, weak)id<HYServerDelegate>        serverDelegate;      // 会话的代理
 
 
 + (instancetype)shared;
@@ -33,11 +34,13 @@
 /**
  开启监听端口
  
+ @param upload 是否监听上传端口
  @param successd 监听端口成功
  @param failed 监听失败
  */
-- (void)startServerForListeningSuccessed:(void (^)(NSString *ip, int port))successd
-                                  failed:(void (^)(NSError *error))failed;
+- (void)startServerForListeningUpload:(BOOL)upload
+                            successed:(void (^)(NSString *ip, int port))successd
+                               failed:(void (^)(NSError *error))failed;
 
 
 /**

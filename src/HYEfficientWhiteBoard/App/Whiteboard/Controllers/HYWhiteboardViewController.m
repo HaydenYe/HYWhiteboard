@@ -10,8 +10,9 @@
 #import "HYColorPanel.h"
 #import "HYWhiteboardView.h"
 #import "HYConversationManager.h"
+#import "HYUploadManager.h"
 
-@interface HYWhiteboardViewController () <HYColorPanelDelegate, HYWbDataSource, HYConversationDelegate>
+@interface HYWhiteboardViewController () <HYColorPanelDelegate, HYWbDataSource, HYConversationDelegate, HYUploadDelegate>
 
 @property (nonatomic, strong)HYColorPanel       *colorPanel;    // 颜色盘
 @property (nonatomic, strong)HYWhiteboardView   *wbView;        // 白板视图
@@ -36,6 +37,7 @@
     self.view.backgroundColor = [UIColor whiteColor];
     
     [HYConversationManager shared].converDelegate = self;
+    [HYUploadManager shared].delegate = self;
     
     [self _configOwnViews];
     
@@ -225,6 +227,15 @@
 }
 
 
+#pragma mark - HYUploadDelegate
+
+// 接收到新图片
+- (void)onNewImage:(UIImage *)image {
+    UIImageView *imageView = [[UIImageView alloc] initWithImage:image];
+    [self.view addSubview:imageView];
+}
+
+
 #pragma mark - Private methods
 
 // 设置子视图
@@ -333,6 +344,35 @@
 // 插入图片
 - (void)_insertImage {
     
+    // 连接上传服务器
+    __weak typeof(self) ws = self;
+    [[HYUploadManager shared] connectUploadServerSuccessed:^(HYSocketService *service) {
+        // 上传图片
+        [ws _uploadImage];
+    } failed:^(NSError *error) {
+        NSLog(@"****HY Error:%@", error.domain);
+    }];
+}
+
+
+#pragma mark - Private methods
+
+// 上传图片
+- (void)_uploadImage {
+    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"50.4M" ofType:@"png"];
+    NSData *data = [NSData dataWithContentsOfFile:filePath];
+    
+    [[HYUploadManager shared] uploadImage:YES data:data progress:^(CGFloat progress) {
+        NSLog(@"HY upload progress:%f", progress);
+    } completion:^(BOOL success, NSUInteger length) {
+        if (success) {
+            // 显示图片
+            
+        }
+        else {
+            NSLog(@"****HY upload Failed.");
+        }
+    }];
 }
 
 

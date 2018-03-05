@@ -8,8 +8,9 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import "HYSocketService.h"
 
-@class HYSocketService, HYWbPoint;
+@class HYWbPoint;
 
 #define kTimeIntervalSendCmd    0.06f   // 发送命令的时间间隔
 
@@ -68,11 +69,14 @@ typedef NS_ENUM(NSUInteger, HYMessageCmd) {
 
 @interface HYConversationManager : NSObject
 
-@property (nonatomic, strong)NSMutableArray                 *cmdBuff;
-@property (nonatomic, weak)id<HYConversationDelegate>       converDelegate;
+@property (nonatomic, strong)NSMutableArray                 *cmdBuff;           // 待发送的命令的缓冲池
+@property (nonatomic, weak)id<HYConversationDelegate>       converDelegate;     // 代理
 
-@property (nonatomic, strong, readonly)HYSocketService      *serveice;
-@property (nonatomic, assign, readonly)BOOL                 isConnected;
+@property (nonatomic, strong, readonly)HYSocketService      *service;           // 客户端的socket服务
+@property (nonatomic, assign, readonly)BOOL                 isConnected;        // 是否已连接
+
+@property (nonatomic, copy, readonly)NSString               *host;              // 服务器地址（客户端使用）
+@property (nonatomic, assign, readonly)int                  port;               // 服务器端口（客户端使用）
 
 
 + (instancetype)shared;

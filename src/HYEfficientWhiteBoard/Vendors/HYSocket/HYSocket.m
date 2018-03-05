@@ -11,7 +11,7 @@
 #import <netinet/in.h>
 #import <arpa/inet.h>
 
-static HYSocket *kThisclass;        // c语言调用OC的方法
+static NSMutableDictionary<NSString *, HYSocket *> *kThisclass;        // c语言调用OC的方法
 
 @interface HYSocket ()
 
@@ -30,9 +30,18 @@ static HYSocket *kThisclass;        // c语言调用OC的方法
 
 @implementation HYSocket
 
+- (instancetype)init {
+    if (self = [super init]) {
+        if (kThisclass == nil) {
+            kThisclass = [NSMutableDictionary new];
+        }
+    }
+    
+    return self;
+}
+
 // 服务端开始监听端口
 - (void)listeningPort:(UInt16)port clientLimit:(NSInteger)clientLimit asyncQueue:(dispatch_queue_t)queue {
-    kThisclass = self;
     _clientList = [NSMutableArray new];
     _socketType = HYSocketTypeServer;
     _queue = queue;
@@ -121,6 +130,16 @@ static HYSocket *kThisclass;        // c语言调用OC的方法
     _timeOut = -1;
     [_timer invalidate];
     _timer = nil;
+    
+    // 释放全局变量中的对象
+    if (_socketType == HYSocketTypeServer) {
+        [kThisclass enumerateKeysAndObjectsUsingBlock:^(NSString * _Nonnull key, HYSocket * _Nonnull obj, BOOL * _Nonnull stop) {
+            if ([obj isEqual:self]) {
+                [kThisclass removeObjectForKey:key];
+                *stop = YES;
+            }
+        }];
+    }
 }
 
 // 获取本地ip地址(暂不使用)
@@ -165,17 +184,17 @@ static HYSocket *kThisclass;        // c语言调用OC的方法
             // 连接成功
             if (_isOutputConnected && _isInputConnected) {
                 _isConnected = YES;
-                if (_socketType == HYSocketTypeClient) {
+                if (_socketType == HYSocketTypeOneClient) {
+                    if (self.delegate && [_delegate respondsToSelector:@selector(onSocketDidAcceptNewClient:withError:)]) {
+                        [self.delegate onSocketDidAcceptNewClient:self withError:nil];
+                    }
+                }
+                else {
                     if (_timer) {
                         [_timer invalidate];
                     }
                     if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
                         [self.delegate onSocketDidConnectServer:self withError:nil];
-                    }
-                }
-                else {
-                    if (self.delegate && [_delegate respondsToSelector:@selector(onSocketDidAcceptNewClient:withError:)]) {
-                        [self.delegate onSocketDidAcceptNewClient:self withError:nil];
                     }
                 }
             }
@@ -190,14 +209,14 @@ static HYSocket *kThisclass;        // c语言调用OC的方法
         case NSStreamEventErrorOccurred:{
             // 网络异常
             [self disconnect];
-            if (_socketType == HYSocketTypeClient) {
+            if (_socketType == HYSocketTypeOneClient) {
+                if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidDisConnect:)]) {
+                    [self.delegate onSocketDidDisConnect:self];
+                }
+            } else {
                 if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
                     NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:nil];
                     [self.delegate onSocketDidConnectServer:self withError:error];
-                }
-            } else {
-                if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidDisConnect:)]) {
-                    [self.delegate onSocketDidDisConnect:self];
                 }
             }
             if (self.socketType == HYSocketTypeOneClient && self.server) {
@@ -208,14 +227,14 @@ static HYSocket *kThisclass;        // c语言调用OC的方法
         case NSStreamEventEndEncountered:{
             // socket断开连接
             [self disconnect];
-            if (_socketType == HYSocketTypeClient) {
+            if (_socketType == HYSocketTypeOneClient) {
+                if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidDisConnect:)]) {
+                    [self.delegate onSocketDidDisConnect:self];
+                }
+            } else {
                 if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
                     NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:nil];
                     [self.delegate onSocketDidConnectServer:self withError:error];
-                }
-            } else {
-                if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidDisConnect:)]) {
-                    [self.delegate onSocketDidDisConnect:self];
                 }
             }
             if (self.socketType == HYSocketTypeOneClient && self.server) {
@@ -244,12 +263,13 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     }
     
     // 客户端连接数量限制
-    if (kThisclass.clientList.count >= kThisclass.clientlimit) {
+    HYSocket *this = [kThisclass objectForKey:[NSThread currentThread].name];
+    if (this.clientList.count >= this.clientlimit) {
         return;
     }
     
     CFSocketNativeHandle nativeSocketHandle = *(CFSocketNativeHandle *)data;
-    [kThisclass _addOneClient:nativeSocketHandle];
+    [this _addOneClient:nativeSocketHandle];
 }
 
 
@@ -299,11 +319,6 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     uint8_t buff[BUFFER_SIZE];
     NSRange window = NSMakeRange(0, BUFFER_SIZE);
     
-    // 数据长度
-    NSUInteger dataLength = [data length];
-    NSMutableData *tmpData = [NSMutableData dataWithBytes:&dataLength length:4];
-    [tmpData appendData:data];
-    
     NSUInteger length = 0;
     
     do {
@@ -312,12 +327,12 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
         }
         
         if ([_outputStream hasSpaceAvailable]) {
-            if ((window.location + window.length) > [tmpData length]) {
-                window.length = [tmpData length] - window.location;
+            if ((window.location + window.length) > [data length]) {
+                window.length = [data length] - window.location;
                 buff[window.length] = '\0';
             }
             
-            [tmpData getBytes:buff range:window];
+            [data getBytes:buff range:window];
             
             if (window.length == 0) {
                 buff[0] = '\0';
@@ -353,6 +368,13 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
 
 // 服务端开始监听端口号
 -(void)_serverListeningPort:(UInt16)port {
+    
+    // 设置线程名称，作为字典的key
+    NSString *key = [NSString stringWithFormat:@"%d", port];
+    [[NSThread currentThread] setName:key];
+    [kThisclass setObject:self forKey:key];
+    
+    // 创建socket
     _socketipv4 = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketAcceptCallBack, handleConnect, NULL);
     
     struct sockaddr_in sin;
