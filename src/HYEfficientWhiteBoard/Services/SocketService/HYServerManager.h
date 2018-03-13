@@ -2,7 +2,7 @@
 //  HYServerManager.h
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2018/2/26.
+//  Created by HaydenYe on 2018/2/26.
 //  Copyright © 2018年 HaydenYe. All rights reserved.
 //
 

@@ -15,6 +15,10 @@
 
 @property (nonatomic, assign)BOOL               isConnected;
 
+@property (nonatomic, strong)NSMutableData      *receivedData;
+@property (nonatomic, assign)CGSize             imageSize;
+@property (nonatomic, assign)NSInteger          imageLength;
+
 @end
 
 
@@ -59,6 +63,18 @@
     _service = clientService;
 }
 
+// 发送图片信息
+- (void)sendImageInfoSize:(CGSize)size fileLength:(uint32_t)length {
+    NSString *msg = [NSString stringWithFormat:kMsgImageInfoFormatter, HYUploadCmdImageInfo, (uint32_t)size.width, (uint32_t)size.height, length];
+    [self.service sendMessage:msg completion:nil];
+}
+
+// 发送图片上传完成的消息
+- (void)sendImageUploadCompletion {
+    NSString *msg = [NSString stringWithFormat:kMsgUploadCompletionFormatter, HYUploadCmdUploadCompletion];
+    [self.service sendMessage:msg completion:nil];
+}
+
 // 上传文件
 - (void)uploadImage:(BOOL)image data:(NSData *)data progress:(void (^)(CGFloat))progress completion:(void (^)(BOOL, NSUInteger))completion {
     [self.service sendMessage:data completion:^(BOOL success, NSUInteger length) {
@@ -71,7 +87,11 @@
 }
 
 // 断开socket连接
-- (void)disconnectUpload:(NSInteger)tag {
+- (void)disconnectUpload {
+    if (_service == nil) {
+        return ;
+    }
+    
     [_service disconnectService];
     
     _isConnected = NO;
@@ -83,17 +103,62 @@
 #pragma mark - HYSocketServiceDelegate
 
 // 新消息
-- (void)onSocketServiceDidReceiveData:(NSData *)msgData service:(HYSocketService *)service {
+- (void)onSocketServiceDidReceiveData:(NSData *)msgData command:(uint16_t)command service:(HYSocketService *)service {
     
-    // CGImage生成UIimage，不会产生中间bit图
-    CGImageSourceRef sourceRef = CGImageSourceCreateWithData((__bridge CFDataRef)msgData, nil);
-    CGImageRef imageRef = CGImageSourceCreateImageAtIndex(sourceRef, 0, NULL);
-    UIImage *image = [[UIImage alloc] initWithCGImage:imageRef];
-    
-    if (_delegate && [_delegate respondsToSelector:@selector(onNewImage:)]) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [_delegate onNewImage:image];
-        });
+    // 普通消息
+    if (command == kCommandNormal) {
+        NSMutableString *msg = [[NSMutableString alloc] initWithData:msgData encoding:NSUTF8StringEncoding];
+        NSArray *dataArr = [msg componentsSeparatedByString:@","];
+        
+        if (dataArr.count <= 0) {
+            return ;
+        }
+        
+        HYUploadCmd cmd = [dataArr.firstObject integerValue];
+        switch (cmd) {
+                
+            // 图片信息
+            case HYUploadCmdImageInfo:{
+                _imageSize = CGSizeMake([dataArr[1] floatValue], [dataArr[2] floatValue]);
+                _imageLength = [dataArr.lastObject integerValue];
+                if (_receivedData) {
+                    [_receivedData resetBytesInRange:NSMakeRange(0, _receivedData.length)];
+                    [_receivedData setLength:0];
+                }
+                break;
+            }
+                
+            // 图片已上传完
+            case HYUploadCmdUploadCompletion:{
+                
+                if (self.receivedData.length != _imageLength) {
+                    NSLog(@"****HY 接受图片失败，数据不全");
+                    return ;
+                }
+                
+                // CGImage生成UIimage，不会产生中间bit图
+                CGImageSourceRef sourceRef = CGImageSourceCreateWithData((__bridge CFDataRef)_receivedData, nil);
+                CGImageRef imageRef = CGImageSourceCreateImageAtIndex(sourceRef, 0, NULL);
+                UIImage *image = [[UIImage alloc] initWithCGImage:imageRef];
+                
+                if (_delegate && [_delegate respondsToSelector:@selector(onNewImage:)]) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [_delegate onNewImage:image];
+                    });
+                }
+                
+                // 断开连接
+                [_service disconnectService];
+                break;
+            }
+                
+            default:
+                break;
+        }
+    }
+    // 文件数据
+    else {
+        [self.receivedData appendData:msgData];
     }
 }
 
@@ -102,9 +167,9 @@
     _isConnected = NO;
     _service = nil;
     
-    if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDisconnect:)]) {
+    if (_delegate && [_delegate respondsToSelector:@selector(onUploadServiceDisconnect)]) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [_delegate onSocketServiceDisconnect:service];
+            [_delegate onUploadServiceDisconnect];
         });
     }
 }
@@ -120,6 +185,15 @@
         _service.indexTag = 300;
     }
     return _service;
+}
+
+// 接收到的图片数据
+- (NSMutableData *)receivedData {
+    if (_receivedData == nil) {
+        _receivedData = [NSMutableData new];
+    }
+    
+    return _receivedData;
 }
 
 @end

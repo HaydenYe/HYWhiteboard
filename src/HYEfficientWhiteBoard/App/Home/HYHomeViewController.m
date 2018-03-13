@@ -2,7 +2,7 @@
 //  HYHomeViewController.m
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2017/10/20.
+//  Created by HaydenYe on 2017/10/20.
 //  Copyright © 2017年 HaydenYe. All rights reserved.
 //
 
@@ -49,6 +49,7 @@
 - (void)onServerAcceptNewClient {
     // 跳转白板页面
     HYWhiteboardViewController *vc = [HYWhiteboardViewController new];
+    vc.isServer = YES;
     [self.navigationController pushViewController:vc animated:YES];
 }
 

@@ -2,7 +2,7 @@
 //  HYSocket.m
 //  Test_Server
 //
-//  Created by apple on 2017/8/2.
+//  Created by HaydenYe on 2017/8/2.
 //  Copyright © 2017年 HYdrate. All rights reserved.
 //
 
@@ -316,8 +316,14 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
 // 先分包，再直接写入数据流中
 -(NSUInteger)_writeDataBySubpackage:(NSData *)data {
     
+    // 消息的命令和长度
+    uint32_t dataLength = htonl(data.length);
+    uint16_t cmd = htons(kCommandDefault);
+    
+    NSMutableData *cmdTypeData = [NSMutableData dataWithBytes:&cmd length:CMDLENGTH_SIZE];
+    
     uint8_t buff[BUFFER_SIZE];
-    NSRange window = NSMakeRange(0, BUFFER_SIZE);
+    NSRange window = NSMakeRange(0, DATABUFFER_SIZE);
     
     NSUInteger length = 0;
     
@@ -329,19 +335,29 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
         if ([_outputStream hasSpaceAvailable]) {
             if ((window.location + window.length) > [data length]) {
                 window.length = [data length] - window.location;
-                buff[window.length] = '\0';
+                buff[window.length + DATALENGTH_SIZE + CMDLENGTH_SIZE] = '\0';
             }
             
-            [data getBytes:buff range:window];
+            // 每个分包添加命令和消息长度
+            NSMutableData *headerData = [cmdTypeData mutableCopy];
+            
+            dataLength = htonl(window.length);
+            NSData *lengthData = [NSData dataWithBytes:&dataLength length:DATALENGTH_SIZE];
+            [headerData appendData:lengthData];
+
+            NSData *tempData = [data subdataWithRange:window];
+            [headerData appendData:tempData];
+            
+            [headerData getBytes:buff length:window.length + DATALENGTH_SIZE + CMDLENGTH_SIZE];
             
             if (window.length == 0) {
                 buff[0] = '\0';
             }
             
-            length += [_outputStream write:buff maxLength:window.length];
-            window = NSMakeRange(window.location + BUFFER_SIZE, window.length);
+            length += [_outputStream write:buff maxLength:window.length + DATALENGTH_SIZE + CMDLENGTH_SIZE];
+            window = NSMakeRange(window.location + DATABUFFER_SIZE, window.length);
         }
-    } while (window.length == BUFFER_SIZE);
+    } while (window.length == DATABUFFER_SIZE);
     
     return length;
 }

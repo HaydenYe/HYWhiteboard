@@ -2,7 +2,7 @@
 //  HYSocket.h
 //  Test_Server
 //
-//  Created by apple on 2017/8/2.
+//  Created by HaydenYe on 2017/8/2.
 //  Copyright © 2017年 HYdrate. All rights reserved.
 //
 
@@ -10,7 +10,12 @@
 
 @class HYSocket;
 
-#define BUFFER_SIZE       1024  // 设置socketI/O数据流的缓冲池大小
+#define BUFFER_SIZE DATABUFFER_SIZE + DATALENGTH_SIZE + CMDLENGTH_SIZE // socketI/O数据流的缓冲池总大小
+#define DATABUFFER_SIZE     1400    // 设置数据分包大小
+#define DATALENGTH_SIZE     4       // 数据的长度占4个字节
+#define CMDLENGTH_SIZE      2       // 消息类型长度占2个字节
+
+#define kCommandDefault     11      // 默认分包的命令类型
 
 typedef NS_ENUM(NSUInteger, HYSocketType) {
     HYSocketTypeNone = 0,       // 未知

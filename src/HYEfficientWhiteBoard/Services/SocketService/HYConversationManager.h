@@ -2,7 +2,7 @@
 //  HYConversationManager.h
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2017/10/24.
+//  Created by HaydenYe on 2017/10/24.
 //  Copyright © 2017年 HaydenYe. All rights reserved.
 //
 

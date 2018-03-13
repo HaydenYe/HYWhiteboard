@@ -2,7 +2,7 @@
 //  HYConversationManager.m
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2017/10/24.
+//  Created by HaydenYe on 2017/10/24.
 //  Copyright © 2017年 HaydenYe. All rights reserved.
 //
 
@@ -103,6 +103,10 @@
 
 // 断开连接
 - (void)disconnectWhiteboard {
+    if (_service == nil) {
+        return ;
+    }
+    
     [_service disconnectService];
     _converDelegate = nil;
     _service = nil;
@@ -114,7 +118,7 @@
 #pragma mark - HYSocketServiceDelegate
 
 // 新消息
-- (void)onSocketServiceDidReceiveData:(NSData *)msgData service:(HYSocketService *)service {
+- (void)onSocketServiceDidReceiveData:(NSData *)msgData command:(uint16_t)command service:(HYSocketService *)service {
     NSMutableString *msg = [[NSMutableString alloc] initWithData:msgData encoding:NSUTF8StringEncoding];
     NSArray *dataArr = [msg componentsSeparatedByString:@","];
     

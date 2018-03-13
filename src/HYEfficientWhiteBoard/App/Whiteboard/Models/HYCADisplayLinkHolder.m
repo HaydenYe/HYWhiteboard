@@ -2,7 +2,7 @@
 //  HYCADisplayLinkHolder.m
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2018/2/28.
+//  Created by HaydenYe on 2018/2/28.
 //  Copyright © 2018年 HaydenYe. All rights reserved.
 //
 

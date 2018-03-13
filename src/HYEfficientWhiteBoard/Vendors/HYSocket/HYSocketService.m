@@ -2,7 +2,7 @@
 //  HYSocketService.m
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2017/10/20.
+//  Created by HaydenYe on 2017/10/20.
 //  Copyright © 2017年 HaydenYe. All rights reserved.
 //
 
@@ -87,8 +87,8 @@
         uint32_t length = htonl(msgData.length);
         uint16_t cmd = htons(kCommandNormal);
         
-        NSMutableData *cmdTypeData = [NSMutableData dataWithBytes:&cmd length:kSocketCmdLength];
-        NSData *lengthData = [NSData dataWithBytes:&length length:kDataLengthSize];
+        NSMutableData *cmdTypeData = [NSMutableData dataWithBytes:&cmd length:CMDLENGTH_SIZE];
+        NSData *lengthData = [NSData dataWithBytes:&length length:DATALENGTH_SIZE];
         [cmdTypeData appendData:lengthData];
         [cmdTypeData appendData:msgData];
         
@@ -97,19 +97,8 @@
     }
     // 文件类型
     else if ([msg isKindOfClass:[NSData class]]) {
-        // 序列化
-        NSData *temp = msg;
-        // 消息的命令和长度
-        uint32_t length = htonl(temp.length);
-        uint16_t cmd = htons(kCommandFile);
-
-        NSMutableData *cmdTypeData = [NSMutableData dataWithBytes:&cmd length:kSocketCmdLength];
-        NSData *lengthData = [NSData dataWithBytes:&length length:kDataLengthSize];
-        [cmdTypeData appendData:lengthData];
-        [cmdTypeData appendData:temp];
-        
         // 发送数据
-        [self.asyncSocket writeData:cmdTypeData asyncQueue:_processQueue direct:NO completion:completion];
+        [self.asyncSocket writeData:(NSData *)msg asyncQueue:_processQueue direct:NO completion:completion];
     }
     // 未知
     else {
@@ -274,7 +263,7 @@
 // 接收数据
 - (void)onSocket:(HYSocket *)socket didReceiveData:(NSData *)data originBuff:(uint8_t *)buff {
     
-    if (data.length >= kSocketCmdLength) {
+    if (data.length >= CMDLENGTH_SIZE) {
         // 上一个包存在半包，且不是递归
         if (socket && _receiveDatas.length > 0) {
             [_receiveDatas appendData:data];
@@ -291,33 +280,33 @@
         if (command == kCommandHeartbeat) {
             _heartbeatStamp = [[NSDate date] timeIntervalSince1970];
             // 递归解析
-            if (data.length > kSocketCmdLength) {
-                [self onSocket:nil didReceiveData:[data subdataWithRange:NSMakeRange(kSocketCmdLength, data.length - kSocketCmdLength)] originBuff:nil];
+            if (data.length > CMDLENGTH_SIZE) {
+                [self onSocket:nil didReceiveData:[data subdataWithRange:NSMakeRange(CMDLENGTH_SIZE, data.length - CMDLENGTH_SIZE)] originBuff:nil];
             }
             return ;
         }
         
-        if (data.length > kSocketCmdLength + kDataLengthSize) {
+        if (data.length > CMDLENGTH_SIZE + DATALENGTH_SIZE) {
             // 获取数据长度
             uint32_t dataLength;
-            [data getBytes:&dataLength range:NSMakeRange(kSocketCmdLength, kDataLengthSize)];
+            [data getBytes:&dataLength range:NSMakeRange(CMDLENGTH_SIZE, DATALENGTH_SIZE)];
             dataLength = ntohl(dataLength);
             
             // 完整数据包
-            if (dataLength == data.length - kSocketCmdLength - kDataLengthSize) {
+            if (dataLength == data.length - CMDLENGTH_SIZE - DATALENGTH_SIZE) {
                 // 分发数据
-                if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:service:)]) {
-                    [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(kSocketCmdLength + kDataLengthSize, dataLength)] service:self];
+                if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:command:service:)]) {
+                    [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(CMDLENGTH_SIZE + DATALENGTH_SIZE, dataLength)] command:command service:self];
                 }
             }
             // 粘包
-            else if (dataLength < data.length - kSocketCmdLength - kDataLengthSize) {
+            else if (dataLength < data.length - CMDLENGTH_SIZE - DATALENGTH_SIZE) {
                 // 分发完整数据
-                if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:service:)]) {
-                    [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(kDataLengthSize + kSocketCmdLength, dataLength)] service:self];
+                if (_delegate && [_delegate respondsToSelector:@selector(onSocketServiceDidReceiveData:command:service:)]) {
+                    [_delegate onSocketServiceDidReceiveData:[data subdataWithRange:NSMakeRange(DATALENGTH_SIZE + CMDLENGTH_SIZE, dataLength)] command:command service:self];
                 }
                 // 剪裁数据
-                [_receiveDatas appendData:[data subdataWithRange:NSMakeRange(kSocketCmdLength + kDataLengthSize + dataLength, data.length - (kSocketCmdLength + kDataLengthSize + dataLength))]];;
+                [_receiveDatas appendData:[data subdataWithRange:NSMakeRange(CMDLENGTH_SIZE + DATALENGTH_SIZE + dataLength, data.length - (CMDLENGTH_SIZE + DATALENGTH_SIZE + dataLength))]];;
                 // 递归解析
                 [self onSocket:nil didReceiveData:[_receiveDatas copy] originBuff:nil];
             }

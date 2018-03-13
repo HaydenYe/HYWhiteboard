@@ -2,7 +2,7 @@
 //  AppDelegate.h
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2017/10/20.
+//  Created by HaydenYe on 2017/10/20.
 //  Copyright © 2017年 HaydenYe. All rights reserved.
 //
 

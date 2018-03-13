@@ -11,7 +11,16 @@
 
 @class HYSocketService;
 
-#define kSocketUploadPort   57777   // 上传端口号
+#define kSocketUploadPort       57777   // 上传端口号
+
+#define kMsgImageInfoFormatter          @"%zd,%d,%d,%d"     // 图片信息的命令:@"HYUploadCmd,size.width,size.height,data.length"
+#define kMsgUploadCompletionFormatter   @"%zd"              // 上传完成的命令:@"HYUploadCmd"
+
+typedef NS_ENUM(NSUInteger, HYUploadCmd) {
+    HYUploadCmdNone = 0,                // 占位
+    HYUploadCmdImageInfo = 101,         // 图片信息
+    HYUploadCmdUploadCompletion = 102,  // 上传完成
+};
 
 
 @protocol HYUploadDelegate <NSObject>
@@ -23,12 +32,12 @@
  */
 - (void)onNewImage:(UIImage *)image;
 
+@optional
+
 /**
  上传socket断开
- 
- @param service socket服务
  */
-- (void)onSocketServiceDisconnect:(HYSocketService *)service;
+- (void)onUploadServiceDisconnect;
 
 @end
 
@@ -60,6 +69,22 @@
  @param clientService 新客户端的服务
  */
 - (void)addNewClient:(HYSocketService *)clientService;
+
+
+/**
+ 发送图片信息
+
+ @param size 图片尺寸
+ @param length 图片文件大小
+ */
+- (void)sendImageInfoSize:(CGSize)size
+               fileLength:(uint32_t)length;
+
+
+/**
+ 发送图片上传完成的消息
+ */
+- (void)sendImageUploadCompletion;
 
 
 /**

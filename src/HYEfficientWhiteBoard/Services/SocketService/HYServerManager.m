@@ -2,7 +2,7 @@
 //  HYServerManager.m
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2018/2/26.
+//  Created by HaydenYe on 2018/2/26.
 //  Copyright © 2018年 HaydenYe. All rights reserved.
 //
 
@@ -84,11 +84,15 @@
 
 // 停止监听端口，断开连接
 - (void)stopListeningPort {
-    [_conService disconnectService];
-    _conService = nil;
+    if (_conService) {
+        [_conService disconnectService];
+        _conService = nil;
+    }
     
-    [_uploadService disconnectService];
-    _uploadService = nil;
+    if (_uploadService) {
+        [_uploadService disconnectService];
+        _uploadService = nil;
+    }
 }
 
 

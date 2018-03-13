@@ -2,7 +2,7 @@
 //  HYWhiteboardViewController.m
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2018/2/27.
+//  Created by HaydenYe on 2018/2/27.
 //  Copyright © 2018年 HaydenYe. All rights reserved.
 //
 
@@ -36,6 +36,8 @@
     self.title = @"白板";
     self.view.backgroundColor = [UIColor whiteColor];
     
+    [UIApplication sharedApplication].idleTimerDisabled = YES;
+    
     [HYConversationManager shared].converDelegate = self;
     [HYUploadManager shared].delegate = self;
     
@@ -46,9 +48,11 @@
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
+    [UIApplication sharedApplication].idleTimerDisabled = NO;
     
     // 断网
     [[HYConversationManager shared] disconnectWhiteboard];
+    [[HYUploadManager shared] disconnectUpload];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -235,13 +239,20 @@
     [self.view addSubview:imageView];
 }
 
+// 上传连接断开
+- (void)onUploadServiceDisconnect {
+    self.navigationItem.rightBarButtonItem.enabled = YES;
+}
+
 
 #pragma mark - Private methods
 
 // 设置子视图
 - (void)_configOwnViews {
-    UIBarButtonItem *item = [[UIBarButtonItem alloc] initWithTitle:@"插入图片" style:UIBarButtonItemStylePlain target:self action:@selector(_insertImage)];
-    [self.navigationItem setRightBarButtonItem:item];
+    if (!_isServer) {
+        UIBarButtonItem *item = [[UIBarButtonItem alloc] initWithTitle:@"插入图片" style:UIBarButtonItemStylePlain target:self action:@selector(_insertImage:)];
+        [self.navigationItem setRightBarButtonItem:item];
+    }
     
     [self.view addSubview:self.wbView];
     [self.view addSubview:self.colorPanel];
@@ -342,7 +353,9 @@
 }
 
 // 插入图片
-- (void)_insertImage {
+- (void)_insertImage:(UIBarButtonItem *)sender {
+    
+    sender.enabled  = NO;
     
     // 连接上传服务器
     __weak typeof(self) ws = self;
@@ -351,6 +364,7 @@
         [ws _uploadImage];
     } failed:^(NSError *error) {
         NSLog(@"****HY Error:%@", error.domain);
+        sender.enabled = YES;
     }];
 }
 
@@ -359,8 +373,12 @@
 
 // 上传图片
 - (void)_uploadImage {
-    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"50.4M" ofType:@"png"];
+    
+    // 发送图片信息
+    NSString *filePath = [[NSBundle mainBundle] pathForResource:@"1424*2144-398KB" ofType:@"jpg"];
     NSData *data = [NSData dataWithContentsOfFile:filePath];
+    
+    [[HYUploadManager shared] sendImageInfoSize:CGSizeMake(4096, 4096) fileLength:(uint32_t)data.length];
     
     [[HYUploadManager shared] uploadImage:YES data:data progress:^(CGFloat progress) {
         NSLog(@"HY upload progress:%f", progress);
@@ -368,6 +386,9 @@
         if (success) {
             // 显示图片
             
+            
+            // 发送上传完成
+            [[HYUploadManager shared] sendImageUploadCompletion];
         }
         else {
             NSLog(@"****HY upload Failed.");

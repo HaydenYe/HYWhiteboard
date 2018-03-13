@@ -2,16 +2,13 @@
 //  HYSocketService.h
 //  HYEfficientWhiteBoard
 //
-//  Created by apple on 2017/10/20.
+//  Created by HaydenYe on 2017/10/20.
 //  Copyright © 2017年 HaydenYe. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>
 
 @class HYSocket, HYSocketService;
-
-#define kDataLengthSize       4         // 数据的长度占4个字节
-#define kSocketCmdLength      2         // 消息类型长度占2个字节
 
 #define kSocketConnectTimeout 20        // 连接服务器超时时间
 
@@ -31,9 +28,11 @@
  接收到消息的回调
 
  @param msgData 消息数据
+ @param command 消息类型(默认分包的消息类型，普通消息，文件消息)
  @param service 接收到消息的socket服务
  */
 - (void)onSocketServiceDidReceiveData:(NSData *)msgData
+                              command:(uint16_t)command
                               service:(HYSocketService *)service;
 
 
