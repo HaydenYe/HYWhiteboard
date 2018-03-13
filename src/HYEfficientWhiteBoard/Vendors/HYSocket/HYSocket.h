@@ -11,7 +11,7 @@
 @class HYSocket;
 
 #define BUFFER_SIZE DATABUFFER_SIZE + DATALENGTH_SIZE + CMDLENGTH_SIZE // socketI/O数据流的缓冲池总大小
-#define DATABUFFER_SIZE     1400    // 设置数据分包大小
+#define DATABUFFER_SIZE     1024    // 设置数据分包大小
 #define DATALENGTH_SIZE     4       // 数据的长度占4个字节
 #define CMDLENGTH_SIZE      2       // 消息类型长度占2个字节
 

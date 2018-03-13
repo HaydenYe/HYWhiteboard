@@ -176,6 +176,7 @@
     // 直接进入白板
     else {
         HYWhiteboardViewController *vc = [HYWhiteboardViewController new];
+        vc.isUnConnected = YES;
         [self.navigationController pushViewController:vc animated:YES];
     }
 }

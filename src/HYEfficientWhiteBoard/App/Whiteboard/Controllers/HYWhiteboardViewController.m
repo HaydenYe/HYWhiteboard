@@ -12,10 +12,13 @@
 #import "HYConversationManager.h"
 #import "HYUploadManager.h"
 
-@interface HYWhiteboardViewController () <HYColorPanelDelegate, HYWbDataSource, HYConversationDelegate, HYUploadDelegate>
+@interface HYWhiteboardViewController () <HYColorPanelDelegate, HYWbDataSource, HYConversationDelegate, HYUploadDelegate, UIScrollViewDelegate>
 
 @property (nonatomic, strong)HYColorPanel       *colorPanel;    // 颜色盘
 @property (nonatomic, strong)HYWhiteboardView   *wbView;        // 白板视图
+@property (nonatomic, strong)UIImageView        *imageView;     // 图片
+@property (nonatomic, strong)UIScrollView       *scrollView;    // scroll view
+@property (nonatomic, strong)UIButton           *drawingBtn;    // 画笔模式开关
 
 @property (nonatomic, assign)NSInteger          lineColorIndex; // 画线颜色的索引
 @property (nonatomic, assign)NSInteger          lineWidth;      // 画线宽度
@@ -35,6 +38,9 @@
     [super viewDidLoad];
     self.title = @"白板";
     self.view.backgroundColor = [UIColor whiteColor];
+    
+    self.navigationController.interactivePopGestureRecognizer.enabled = NO;
+    self.navigationController.automaticallyAdjustsScrollViewInsets = NO;
     
     [UIApplication sharedApplication].idleTimerDisabled = YES;
     
@@ -235,13 +241,20 @@
 
 // 接收到新图片
 - (void)onNewImage:(UIImage *)image {
-    UIImageView *imageView = [[UIImageView alloc] initWithImage:image];
-    [self.view addSubview:imageView];
+    [self.scrollView setZoomScale:1.f];
+    _imageView.image = image;
 }
 
 // 上传连接断开
 - (void)onUploadServiceDisconnect {
     self.navigationItem.rightBarButtonItem.enabled = YES;
+}
+
+
+#pragma mark - UIScrollViewDelegate
+
+- (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
+    return _imageView;
 }
 
 
@@ -254,10 +267,17 @@
         [self.navigationItem setRightBarButtonItem:item];
     }
     
-    [self.view addSubview:self.wbView];
+    [self.view addSubview:self.scrollView];
+    [self.scrollView addSubview:self.imageView];
+    [self.imageView addSubview:self.wbView];
     [self.view addSubview:self.colorPanel];
+    [self.view addSubview:self.drawingBtn];
     
     [self _addGestureRecognizerToView:_wbView];
+    
+    if (_isUnConnected) {
+        [self onNewImage:[UIImage imageWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"1424*2144-398KB" ofType:@"jpg"]]];
+    }
 }
 
 // 设置线条数据源
@@ -368,9 +388,6 @@
     }];
 }
 
-
-#pragma mark - Private methods
-
 // 上传图片
 - (void)_uploadImage {
     
@@ -380,12 +397,13 @@
     
     [[HYUploadManager shared] sendImageInfoSize:CGSizeMake(4096, 4096) fileLength:(uint32_t)data.length];
     
+    __weak typeof(self) ws = self;
     [[HYUploadManager shared] uploadImage:YES data:data progress:^(CGFloat progress) {
         NSLog(@"HY upload progress:%f", progress);
     } completion:^(BOOL success, NSUInteger length) {
         if (success) {
             // 显示图片
-            
+            [ws onNewImage:[UIImage imageWithContentsOfFile:filePath]];
             
             // 发送上传完成
             [[HYUploadManager shared] sendImageUploadCompletion];
@@ -394,6 +412,25 @@
             NSLog(@"****HY upload Failed.");
         }
     }];
+}
+
+// 画笔模式按钮开关
+- (void)_onClickDrawingBtn:(UIButton *)sender {
+    
+    // 退出画笔模式
+    if (sender.isSelected) {
+        _imageView.userInteractionEnabled = NO;
+        _scrollView.scrollEnabled = YES;
+        [sender setSelected:NO];
+        sender.layer.borderColor = [UIColor grayColor].CGColor;
+    }
+    // 进入画笔模式
+    else {
+        _imageView.userInteractionEnabled = YES;
+        _scrollView.scrollEnabled = NO;
+        [sender setSelected:YES];
+        sender.layer.borderColor = [UIColor redColor].CGColor;
+    }
 }
 
 
@@ -413,11 +450,62 @@
 - (HYWhiteboardView *)wbView {
     if (_wbView == nil) {
         _wbView = [HYWhiteboardView new];
-        _wbView.frame = CGRectMake(0, 0, [UIScreen mainScreen].bounds.size.width, [UIScreen mainScreen].bounds.size.height);
+        _wbView.frame = self.imageView.frame;
         _wbView.dataSource = self;
     }
     
     return _wbView;
+}
+
+// scroll view
+- (UIScrollView *)scrollView {
+    if (_scrollView == nil) {
+        _scrollView = [UIScrollView new];
+        _scrollView.frame = CGRectMake(0, 0, [UIScreen mainScreen].bounds.size.width, [UIScreen mainScreen].bounds.size.height);
+        _scrollView.maximumZoomScale = 3.f;
+        _scrollView.bounces = NO;
+        _scrollView.bouncesZoom = NO;
+        _scrollView.delegate = self;
+        _scrollView.contentSize = CGSizeMake(_scrollView.frame.size.width, _scrollView.frame.size.height - 44.f - STATUS_BAR_HEIGHT);
+        _scrollView.backgroundColor = [UIColor whiteColor];
+        _scrollView.showsHorizontalScrollIndicator = NO;
+        _scrollView.showsVerticalScrollIndicator = NO;
+    }
+    
+    return _scrollView;
+}
+
+// 图片
+- (UIImageView *)imageView {
+    if (_imageView == nil) {
+        _imageView = [UIImageView new];
+        _imageView.frame = CGRectMake(0, 0, _scrollView.contentSize.width, _scrollView.contentSize.height);
+        _imageView.contentMode = UIViewContentModeScaleAspectFit;
+        _imageView.backgroundColor = [UIColor whiteColor];
+        _imageView.userInteractionEnabled = _drawingBtn.isSelected ? YES : NO;
+    }
+    
+    return _imageView;
+}
+
+// 画笔模式开关
+- (UIButton *)drawingBtn {
+    if (_drawingBtn == nil) {
+        _drawingBtn = [UIButton new];
+        _drawingBtn.frame = CGRectMake(15.f, 44.f + STATUS_BAR_HEIGHT + 10.f, 56.f, 56.f);
+        _drawingBtn.layer.masksToBounds = YES;
+        _drawingBtn.layer.cornerRadius = 28.f;
+        _drawingBtn.layer.borderWidth = 1.f;
+        _drawingBtn.backgroundColor = [UIColor whiteColor];
+        _drawingBtn.layer.borderColor = [UIColor grayColor].CGColor;
+        [_drawingBtn setTitle:@"画笔" forState:UIControlStateNormal];
+        [_drawingBtn setTitleColor:[UIColor grayColor] forState:UIControlStateNormal];
+        [_drawingBtn setTitleColor:[UIColor redColor] forState:UIControlStateSelected];
+        _drawingBtn.titleLabel.font = [UIFont systemFontOfSize:14.f];
+        [_drawingBtn addTarget:self action:@selector(_onClickDrawingBtn:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    
+    return _drawingBtn;
 }
 
 @end

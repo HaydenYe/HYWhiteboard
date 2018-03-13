@@ -10,6 +10,8 @@
 
 @interface HYWhiteboardViewController : UIViewController
 
-@property (nonatomic, assign)BOOL isServer;
+@property (nonatomic, assign)BOOL isServer;         // 服务器端
+
+@property (nonatomic, assign)BOOL isUnConnected;    // 不需socket
 
 @end

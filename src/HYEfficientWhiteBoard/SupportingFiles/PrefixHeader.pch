@@ -9,6 +9,10 @@
 #ifndef PrefixHeader_pch
 #define PrefixHeader_pch
 
-#define COLOR_WITH_HEX(hexValue, a)  [UIColor colorWithRed:((float)((hexValue & 0xFF0000) >> 16)) / 255.0 green:((float)((hexValue & 0x00FF) >> 8)) / 255.0 blue:((float)(hexValue & 0xFF)) / 255.0 alpha:a]
+// 16进制颜色转换
+#define COLOR_WITH_HEX(hexValue, a) [UIColor colorWithRed:((float)((hexValue & 0xFF0000) >> 16)) / 255.0 green:((float)((hexValue & 0x00FF) >> 8)) / 255.0 blue:((float)(hexValue & 0xFF)) / 255.0 alpha:a]
+
+// 状态栏高度
+#define STATUS_BAR_HEIGHT           [UIApplication sharedApplication].statusBarFrame.size.height
 
 #endif /* PrefixHeader_pch */
