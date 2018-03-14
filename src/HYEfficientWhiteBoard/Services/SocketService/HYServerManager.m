@@ -13,9 +13,9 @@
 
 @interface HYServerManager () <HYSocketServiceDelegate>
 
-@property (nonatomic, strong)HYSocketService *conService;
-@property (nonatomic, strong)HYSocketService *uploadService;
-@property (nonatomic, assign)int             currentPort;
+@property (nonatomic, strong)HYSocketService *conService;       // 会话服务器
+@property (nonatomic, strong)HYSocketService *uploadService;    // 上传服务器
+@property (nonatomic, assign)int             currentPort;       // 当前监听的端口
 
 @end
 

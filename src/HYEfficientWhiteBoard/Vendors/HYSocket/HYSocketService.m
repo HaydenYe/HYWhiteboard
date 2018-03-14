@@ -26,7 +26,7 @@
 @property (nonatomic, assign)BOOL               upload;                     // 是否为上传
 
 @property (nonatomic, strong)dispatch_queue_t   heartbeatQueue;             // 心跳包线程
-@property (nonatomic, assign)NSTimeInterval     heartbeatStamp;             // 接收到心跳包的时间戳
+@property (nonatomic, assign)NSInteger          heartbeatStamp;             // 接收到心跳包的时间戳
 @property (nonatomic, strong)NSTimer            *sendTimer;                 // 发送心跳包的计时器
 @property (nonatomic, strong)NSTimer            *checkTimer;                // 检测心跳包的计时器
 
@@ -429,10 +429,11 @@
     [_asyncSocket writeData:cmdData asyncQueue:nil direct:YES completion:nil];
 }
 
-// 检测心跳包，没收到则断开连接
+// 检测心跳包，没收到则检测网络是否还在连接中
 - (void)_checkHeartbeatMessage {
     NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
     if (now - _heartbeatStamp > kTimeCheckHeartbeat) {
+        // 断开连接
         [self.asyncSocket disconnect];
         [self onSocketDidDisConnect:self.asyncSocket];
     }

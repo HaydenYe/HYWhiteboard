@@ -25,7 +25,7 @@
 
 @property (nonatomic, strong, readonly)HYSocketService *conService;        // 会话服务器的服务
 @property (nonatomic, strong, readonly)HYSocketService *uploadService;     // 上传文件服务器的服务
-@property (nonatomic, weak)id<HYServerDelegate>        serverDelegate;      // 会话的代理
+@property (nonatomic, weak)id<HYServerDelegate>        serverDelegate;     // 会话的代理
 
 
 + (instancetype)shared;

@@ -69,7 +69,6 @@ typedef NS_ENUM(NSUInteger, HYMessageCmd) {
 
 @interface HYConversationManager : NSObject
 
-@property (nonatomic, strong)NSMutableArray                 *cmdBuff;           // 待发送的命令的缓冲池
 @property (nonatomic, weak)id<HYConversationDelegate>       converDelegate;     // 代理
 
 @property (nonatomic, strong, readonly)HYSocketService      *service;           // 客户端的socket服务

@@ -49,7 +49,6 @@ static NSMutableDictionary<NSString *, HYSocket *> *kThisclass;        // c语�
     
     dispatch_async(_queue, ^{
         [self _serverListeningPort:port];
-        [[NSRunLoop currentRunLoop] run];
     });
 }
 
@@ -61,7 +60,6 @@ static NSMutableDictionary<NSString *, HYSocket *> *kThisclass;        // c语�
     
     dispatch_async(_queue, ^{
         [self _clientConnectServer:ip port:port];
-        [[NSRunLoop currentRunLoop] run];
     });
 }
 
@@ -215,7 +213,7 @@ static NSMutableDictionary<NSString *, HYSocket *> *kThisclass;        // c语�
                 }
             } else {
                 if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
-                    NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:nil];
+                    NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:@{NSLocalizedFailureReasonErrorKey:@"I/O流异常关闭"}];
                     [self.delegate onSocketDidConnectServer:self withError:error];
                 }
             }
@@ -233,7 +231,7 @@ static NSMutableDictionary<NSString *, HYSocket *> *kThisclass;        // c语�
                 }
             } else {
                 if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
-                    NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:nil];
+                    NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:@{NSLocalizedFailureReasonErrorKey:@"socket连接断开"}];
                     [self.delegate onSocketDidConnectServer:self withError:error];
                 }
             }
@@ -255,7 +253,7 @@ static NSMutableDictionary<NSString *, HYSocket *> *kThisclass;        // c语�
 #pragma mark - Socket callback handler
 
 // 服务端接收到新的客户端的连接
-static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *info) {
+static void handleNewClientConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *info) {
     
     // 只处理kCFSocketAcceptCallBack类型的事件
     if (type != kCFSocketAcceptCallBack) {
@@ -264,13 +262,30 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     
     // 客户端连接数量限制
     HYSocket *this = [kThisclass objectForKey:[NSThread currentThread].name];
-    if (this.clientList.count >= this.clientlimit) {
+    if (this == nil || this.clientList.count >= this.clientlimit) {
         return;
     }
     
     CFSocketNativeHandle nativeSocketHandle = *(CFSocketNativeHandle *)data;
     [this _addOneClient:nativeSocketHandle];
 }
+
+/* 暂不使用
+// 客户端连接服务端
+static void handleConnectServer(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *info) {
+    // 只处理kCFSocketConnectCallBack类型的事件
+    if (type != kCFSocketConnectCallBack) {
+        return;
+    }
+    
+    // 客户端连接数量限制
+    HYSocket *this = [kThisclass objectForKey:[NSThread currentThread].name];
+    if (this == nil) {
+        return;
+    }
+    
+    [this _clientConnectServer];
+}*/
 
 
 #pragma mark - HYSocket foundation
@@ -391,7 +406,17 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     [kThisclass setObject:self forKey:key];
     
     // 创建socket
-    _socketipv4 = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketAcceptCallBack, handleConnect, NULL);
+    _socketipv4 = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketAcceptCallBack, handleNewClientConnect, NULL);
+    if (_socketipv4 == nil) {
+        if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidStartListening:withError:)]) {
+            NSError *error = [NSError errorWithDomain:@"监听端口失败" code:kCFSocketError userInfo:@{@"port":[[NSNumber alloc] initWithInt:port], NSLocalizedFailureReasonErrorKey:@"socket创建失败"}];
+            [self.delegate onSocketDidStartListening:self withError:error];
+        }
+    }
+    
+    // 设置重用地址和端口
+    int optVal = 1;
+    setsockopt(CFSocketGetNative(_socketipv4), SOL_SOCKET, SO_REUSEADDR, (void *)&optVal, sizeof(optVal));
     
     struct sockaddr_in sin;
     
@@ -407,7 +432,6 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     CFRelease(sincfd);
     
     if (setAddress != kCFSocketSuccess) {
-        perror("CFSocketSetAddress:");
         if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidStartListening:withError:)]) {
             NSError *error = [NSError errorWithDomain:setAddress == kCFSocketTimeout ? @"设置监听超时" : @"监听端口失败" code:setAddress userInfo:@{@"port":[[NSNumber alloc] initWithInt:port]}];
             [self.delegate onSocketDidStartListening:self withError:error];
@@ -418,12 +442,14 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
         if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidStartListening:withError:)]) {
             [self.delegate onSocketDidStartListening:self withError:nil];
         }
+        
+        CFRunLoopSourceRef socketsource = CFSocketCreateRunLoopSource(kCFAllocatorDefault, _socketipv4, 0);
+        
+        // 开始监听
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource, kCFRunLoopCommonModes);
+        CFRelease(socketsource);
+        CFRunLoopRun();
     }
-    
-    CFRunLoopSourceRef socketsource = CFSocketCreateRunLoopSource(kCFAllocatorDefault, _socketipv4, 0);
-    
-    // 开始监听
-    CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource, kCFRunLoopCommonModes);
 }
 
 // 添加新接收的客户端
@@ -438,31 +464,67 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
 }
 
 
-
 #pragma mark - Client socket
 
 // 客户端连接服务端
 -(void)_clientConnectServer:(NSString *)ip port:(UInt16)port {
-    //Connect To Server And Open I/O Stream
-    /* Be deprecated by HY
-     _socketRef = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketAcceptCallBack, handleConnectServer, NULL);
-     
-     struct sockaddr_in sin;
-     
-     memset(&sin, 0, sizeof(sin));
-     sin.sin_len = sizeof(sin);
-     sin.sin_family = AF_INET;
-     sin.sin_port = htons(port);
-     sin.sin_addr.s_addr = inet_addr([ip UTF8String]);
-     
-     CFDataRef sincfd = CFDataCreate(kCFAllocatorDefault, (UInt8 *)&sin, sizeof(sin));
-     
-     CFSocketError result = CFSocketConnectToAddress(_socketRef, sincfd, -1);
-     */
+    /* cfsocket方式 暂不使用
+    // 设置线程名称，作为字典的key
+    NSString *key = [NSString stringWithFormat:@"%d", port];
+    [[NSThread currentThread] setName:key];
+    [kThisclass setObject:self forKey:key];
+    
+    // 连接服务器
+    _socketipv4 = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketConnectCallBack, handleConnectServer, NULL);
+    if (_socketipv4 == nil) {
+        if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
+            NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:@{NSLocalizedFailureReasonErrorKey:@"socket创建失败"}];
+            [self.delegate onSocketDidConnectServer:self withError:error];
+        }
+    }
+    
+    struct sockaddr_in sin;
+    
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_len = sizeof(sin);
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(port);
+    sin.sin_addr.s_addr = inet_addr([ip UTF8String]);
+    
+    CFDataRef sincfd = CFDataCreate(kCFAllocatorDefault, (UInt8 *)&sin, sizeof(sin));
+    
+    CFSocketError result = CFSocketConnectToAddress(_socketipv4, sincfd, _timeOut);
+    
+    // 连接失败
+    if (result == kCFSocketError) {
+        [self disconnect];
+        if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
+            NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:@{NSLocalizedFailureReasonErrorKey:@"socket连接失败"}];
+            [self.delegate onSocketDidConnectServer:self withError:error];
+        }
+    }
+    // 连接超时
+    else if (result == kCFSocketTimeout) {
+        [self disconnect];
+        if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
+            NSError *error = [NSError errorWithDomain:@"连接超时" code:kCFSocketTimeout userInfo:nil];
+            [self.delegate onSocketDidConnectServer:self withError:error];
+        }
+    }
+    // 连接成功
+    else {
+        CFRunLoopSourceRef socketsource = CFSocketCreateRunLoopSource(kCFAllocatorDefault, _socketipv4, 0);
+        
+        // 开始监听
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), socketsource, kCFRunLoopCommonModes);
+        CFRelease(socketsource);
+        CFRunLoopRun();
+    }*/
+    
     
     CFReadStreamRef readStream;
     CFWriteStreamRef writeStream;
-    
+
     CFStreamCreatePairWithSocketToHost(NULL, (__bridge CFStringRef)ip, port, &readStream, &writeStream);
     
     if (readStream && writeStream) {
@@ -471,6 +533,8 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
         if (_timeOut > 0) {
             _timer = [NSTimer scheduledTimerWithTimeInterval:_timeOut target:self selector:@selector(_setConnectTimeOut) userInfo:nil repeats:NO];
         }
+        
+        [[NSRunLoop currentRunLoop] run];
     }
     else {
         [self disconnect];
@@ -481,6 +545,31 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
     }
 }
 
+/* 暂不使用
+// 打开I/O流
+- (void)_clientConnectServer {
+    _nativeSocket4 = CFSocketGetNative(_socketipv4);
+    
+    dispatch_async(_queue, ^{
+        CFReadStreamRef readStream;
+        CFWriteStreamRef writeStream;
+        
+        CFStreamCreatePairWithSocket(kCFAllocatorDefault, _nativeSocket4, &readStream, &writeStream);
+        
+        if (readStream && writeStream) {
+            [self _openReadStream:readStream writeStream:writeStream];
+            
+            [[NSRunLoop currentRunLoop] run];
+        }
+        else {
+            [self disconnect];
+            if (self.delegate && [self.delegate respondsToSelector:@selector(onSocketDidConnectServer:withError:)]) {
+                NSError *error = [NSError errorWithDomain:@"连接失败" code:kCFSocketError userInfo:@{NSLocalizedFailureReasonErrorKey:@"I/O流打开失败"}];
+                [self.delegate onSocketDidConnectServer:self withError:error];
+            }
+        }
+    });
+}*/
 
 
 #pragma mark - New client
@@ -499,6 +588,8 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
         
         if (readStream && writeStream) {
             [self _openReadStream:readStream writeStream:writeStream];
+            
+            [[NSRunLoop currentRunLoop] run];
         }
         else {
             [self disconnect];
@@ -507,9 +598,11 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
                 [self.delegate onSocketDidAcceptNewClient:self withError:error];
             }
         }
-        [[NSRunLoop currentRunLoop] run];
     });
 }
+
+
+#pragma mark - Private methods
 
 // 获取本地ip或端口号
 - (NSString *)_getPortWithNativeHandle:(CFSocketNativeHandle)nativeHandle address:(BOOL)addr {
@@ -537,9 +630,6 @@ static void handleConnect(CFSocketRef socket, CFSocketCallBackType type, CFDataR
         }
     }
 }
-
-
-#pragma mark - Private methods
 
 //设置连接超时计时器
 - (void)_setConnectTimeOut {

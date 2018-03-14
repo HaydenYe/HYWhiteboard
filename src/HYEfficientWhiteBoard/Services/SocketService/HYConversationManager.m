@@ -11,15 +11,15 @@
 
 @interface HYConversationManager () <HYSocketServiceDelegate>
 
-@property (nonatomic, strong)HYSocketService    *service;
-@property (nonatomic, copy)NSString             *host;
-@property (nonatomic, assign)int                port;
+@property (nonatomic, strong)HYSocketService    *service;           // 客户端的socket服务
+@property (nonatomic, copy)NSString             *host;              // 当前连接的服务器ip
+@property (nonatomic, assign)int                port;               // 当前连接的服务器端口
 
-@property (nonatomic, assign)BOOL               isConnected;
-@property (nonatomic, strong)NSDictionary       *whiteboardCmdDic;
+@property (nonatomic, assign)BOOL               isConnected;        // 是否已连接
 
-@property (nonatomic, strong)NSTimer            *cmdTimer;
-@property (nonatomic, strong)dispatch_queue_t   cmdQueue;
+@property (nonatomic, strong)NSMutableArray     *cmdBuff;           // 待发送的命令的缓冲池
+@property (nonatomic, strong)NSTimer            *cmdTimer;          // 发送命令的计时器
+@property (nonatomic, strong)dispatch_queue_t   cmdQueue;           // 发送命令的线程
 
 @end
 

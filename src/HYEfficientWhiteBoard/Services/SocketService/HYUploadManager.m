@@ -15,9 +15,9 @@
 
 @property (nonatomic, assign)BOOL               isConnected;
 
-@property (nonatomic, strong)NSMutableData      *receivedData;
-@property (nonatomic, assign)CGSize             imageSize;
-@property (nonatomic, assign)NSInteger          imageLength;
+@property (nonatomic, strong)NSMutableData      *receivedData;      // 接收到的图片数据
+@property (nonatomic, assign)CGSize             imageSize;          // 图片尺寸
+@property (nonatomic, assign)NSInteger          imageLength;        // 图片数据大小
 
 @end
 
