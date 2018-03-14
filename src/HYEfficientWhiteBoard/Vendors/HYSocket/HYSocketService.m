@@ -171,8 +171,7 @@
     NSDictionary *addresses = [self _getIPAddresses];
     
     __block NSString *address;
-    [searchArray enumerateObjectsUsingBlock:^(NSString *key, NSUInteger idx, BOOL *stop)
-     {
+    [searchArray enumerateObjectsUsingBlock:^(NSString *key, NSUInteger idx, BOOL *stop) {
          address = addresses[key];
          if(address) *stop = YES;
      } ];
@@ -448,7 +447,7 @@
     if(!getifaddrs(&interfaces)) {
         // Loop through linked list of interfaces
         struct ifaddrs *interface;
-        for(interface = interfaces; interface; interface = interface->ifa_next) {
+        for (interface = interfaces; interface; interface = interface->ifa_next) {
             if(!(interface->ifa_flags & IFF_UP) /* || (interface->ifa_flags & IFF_LOOPBACK) */ ) {
                 continue; // deeply nested code harder to read
             }

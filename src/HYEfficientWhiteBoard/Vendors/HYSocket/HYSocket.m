@@ -140,33 +140,6 @@ static NSMutableDictionary<NSString *, HYSocket *> *kThisclass;        // c语�
     }
 }
 
-// 获取本地ip地址(暂不使用)
-- (NSString *)hostAddress {
-    
-    if (_nativeSocket4 <= 0) {
-        if (_socketipv4 == nil) {
-            return @"";
-        } else {
-            _nativeSocket4 = CFSocketGetNative(_socketipv4);
-        }
-    }
-    
-    return [self _getPortWithNativeHandle:_nativeSocket4 address:YES];
-}
-
-// 获取本地socket连接的端口号(暂不使用)
-- (NSString *)hostPort {
-    if (_nativeSocket4 <= 0) {
-        if (_socketipv4 == nil) {
-            return @"";
-        } else {
-            _nativeSocket4 = CFSocketGetNative(_socketipv4);
-        }
-    }
-    
-    return [self _getPortWithNativeHandle:_nativeSocket4 address:NO];
-}
-
 
 #pragma mark - NSStream delegate
 
@@ -603,33 +576,6 @@ static void handleConnectServer(CFSocketRef socket, CFSocketCallBackType type, C
 
 
 #pragma mark - Private methods
-
-// 获取本地ip或端口号
-- (NSString *)_getPortWithNativeHandle:(CFSocketNativeHandle)nativeHandle address:(BOOL)addr {
-    
-    uint8_t name[SOCK_MAXADDRLEN];
-    socklen_t namelen = sizeof(name);
-    
-    if (getpeername(nativeHandle, (struct sockaddr *)name, &namelen) != kCFSocketSuccess) {
-        perror("getpeername:");
-        return @"";
-    }
-    else {
-        struct sockaddr_in *addr_in = (struct sockaddr_in *)name;
-        char address[20];
-        uint8_t port;
-        
-        inet_ntop(AF_INET, &addr_in, address, sizeof(address));
-        port = ntohs(addr_in->sin_port);
-        
-        if (addr) {
-            return [NSString stringWithUTF8String:address];
-        }
-        else {
-            return [NSString stringWithFormat:@"%zd", port];
-        }
-    }
-}
 
 //设置连接超时计时器
 - (void)_setConnectTimeOut {

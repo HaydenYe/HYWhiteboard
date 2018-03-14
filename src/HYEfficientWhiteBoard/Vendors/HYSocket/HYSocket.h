@@ -150,8 +150,4 @@ typedef NS_ENUM(NSUInteger, HYSocketType) {
 - (void)disconnect;
 
 
-// 暂不使用
-- (NSString *)hostAddress;
-- (NSString *)hostPort;
-
 @end
