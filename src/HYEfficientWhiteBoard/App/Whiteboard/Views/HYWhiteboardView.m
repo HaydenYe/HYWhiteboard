@@ -92,18 +92,6 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     _lastEraserPoint = point;
 }
 
-// 渲染橡皮画线
-- (void)drawEraserPoint:(CGPoint)point lineWidth:(NSInteger)width {
-    CGFloat lineWidth = width * 2.f / 1.414f;
-    
-    // 只重绘局部，提高效率
-    CGRect brushRect = CGRectMake(point.x - lineWidth /2.f, point.y - lineWidth/2.f, lineWidth, lineWidth);
-    [self.layer setNeedsDisplayInRect:brushRect];
-    
-    // 十分关键，需要立即渲染
-    [self.layer display];
-}
-
 
 #pragma mark - HYCADisplayLinkHolderDelegate
 
@@ -141,6 +129,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
         // 如果是最后一个点，更新视图层，将线画到视图层
         HYWbPoint *theLastPoint = [currentLine lastObject];
         if (theLastPoint.type == HYWbPointTypeEnd) {
+            // 标记图层需要重新绘制
             [self.layer setNeedsDisplay];
             _realTimeLy.hidden = YES;
         }
@@ -197,12 +186,11 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     
     // 需要渲染
     if (needStroke) {
-        [lineColor setStroke];
-        
         if (firstPoint.isEraser) {
-            [path strokeWithBlendMode:kCGBlendModeCopy alpha:1.0];
+            [path strokeWithBlendMode:kCGBlendModeClear alpha:1.0];
         }
         else {
+            [lineColor setStroke];
             [path strokeWithBlendMode:kCGBlendModeNormal alpha:1.0];
         }
     }
@@ -243,7 +231,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
                 addP.y = addP.y - difY * i;
             }
             
-            [self drawEraserPoint:addP lineWidth:lineWidth];
+            [self _drawEraserPoint:addP lineWidth:lineWidth];
         }
     }
     else if (offsetX < - kMaxDif) {
@@ -255,7 +243,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
             else if (offsetY < - kMaxDif) {
                 addP.y = addP.y - difY * i;
             }
-            [self drawEraserPoint:addP lineWidth:lineWidth];
+            [self _drawEraserPoint:addP lineWidth:lineWidth];
         }
     }
     else if (offsetY > kMaxDif) {
@@ -268,7 +256,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
                 addP.x = addP.x - difX * i;
             }
             
-            [self drawEraserPoint:addP lineWidth:lineWidth];
+            [self _drawEraserPoint:addP lineWidth:lineWidth];
         }
     }
     else if (offsetY < - kMaxDif) {
@@ -281,13 +269,25 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
                 addP.x = addP.x - difX * i;
             }
             
-            [self drawEraserPoint:addP lineWidth:lineWidth];
+            [self _drawEraserPoint:addP lineWidth:lineWidth];
         }
     }
     // 不需要补充画点
     else {
-        [self drawEraserPoint:point lineWidth:lineWidth];
+        [self _drawEraserPoint:point lineWidth:lineWidth];
     }
+}
+
+// 渲染橡皮画线
+- (void)_drawEraserPoint:(CGPoint)point lineWidth:(NSInteger)width {
+    CGFloat lineWidth = width * 2.f / 1.414f;
+    
+    // 只重绘局部，提高效率
+    CGRect brushRect = CGRectMake(point.x - lineWidth /2.f, point.y - lineWidth/2.f, lineWidth, lineWidth);
+    [self.layer setNeedsDisplayInRect:brushRect];
+    
+    // 十分关键，需要立即渲染
+    [self.layer display];
 }
 
 
