@@ -205,6 +205,12 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     CGFloat offsetX = point.x - self.lastEraserPoint.x;
     CGFloat offsetY = point.y - self.lastEraserPoint.y;
     
+    // 起始点x、y偏移量为零，直接绘制，防止Nan崩溃（也可以不绘制）
+    if (offsetX == 0 && offsetY == 0) {
+        [self _drawEraserPoint:point lineWidth:lineWidth];
+        return ;
+    }
+    
     // 每个点之间，x、y的间隔
     CGFloat difX = kMaxDif;
     CGFloat difY = kMaxDif;
