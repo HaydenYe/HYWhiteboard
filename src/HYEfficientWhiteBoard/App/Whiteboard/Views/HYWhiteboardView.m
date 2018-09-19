@@ -81,6 +81,13 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     
     _isEraserLine = YES;
     
+#warning iOS12版本setNeedsDisplayInRect:不能局部绘制，等待修复
+    if ([[UIDevice currentDevice].systemVersion floatValue] >= 12.f) {
+        [self.layer setNeedsDisplay];
+        [self.layer display];
+        return ;
+    }
+    
     CGPoint point = CGPointMake(wbPoint.xScale * self.frame.size.width, wbPoint.yScale * self.frame.size.height);
     if (wbPoint.type == HYWbPointTypeStart) {
         _lastEraserPoint = point;
@@ -111,11 +118,12 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
         }
         
         // 橡皮的画线需要直接渲染到视图层，所以不再此渲染
-        NSArray *currentLine = lines.lastObject;
-        HYWbPoint *firstPoint = [currentLine objectAtIndex:0];
         if (_isEraserLine) {
             return;
         }
+        
+        NSArray *currentLine = lines.lastObject;
+        HYWbPoint *firstPoint = [currentLine objectAtIndex:0];
         
         // 将画线渲染到实时显示层
         UIBezierPath *path = [self _singleLine:currentLine needStroke:NO];
@@ -143,6 +151,15 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 - (void)_drawLines {
     // 正在渲染橡皮画线的时候，不刷新视图
     if (_isEraserLine == NO) {
+        NSDictionary *allLines = [_dataSource allLines];
+        for (NSString *key in allLines.allKeys) {
+            for (NSArray *line in allLines[key]) {
+                [self _singleLine:line needStroke:YES];
+            }
+        }
+    }
+#warning iOS12版本setNeedsDisplayInRect:不能局部绘制，等待修复
+    else if ([[UIDevice currentDevice].systemVersion floatValue] >= 12.f) {
         NSDictionary *allLines = [_dataSource allLines];
         for (NSString *key in allLines.allKeys) {
             for (NSArray *line in allLines[key]) {
