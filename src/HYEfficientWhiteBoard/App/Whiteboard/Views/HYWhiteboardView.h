@@ -7,7 +7,7 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "HYWbPoint.h"
+#import "HYWbLines.h"
 
 extern NSString *const UserOfLinesMine;         // 自己画线的key
 extern NSString *const UserOfLinesOther;        // 其他人画线的key
@@ -16,7 +16,7 @@ extern NSString *const UserOfLinesOther;        // 其他人画线的key
 @protocol HYWbDataSource <NSObject>
 
 // 所有的画线
-- (NSDictionary<NSString *, NSArray *> *)allLines;
+- (NSDictionary<NSString *, HYWbLines *> *)allLines;
 
 // 颜色数组
 - (NSArray<UIColor *> *)colorArr;

@@ -23,6 +23,7 @@
 		18E6D7AE1F99E26D001F208C /* HYSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = 18E6D7AC1F99E26D001F208C /* HYSocket.m */; };
 		18FA86FC1F99EAFD00453DCB /* HYSocketService.m in Sources */ = {isa = PBXBuildFile; fileRef = 18FA86FB1F99EAFD00453DCB /* HYSocketService.m */; };
 		BC1B4592204A3ED100DC68C6 /* HYUploadManager.m in Sources */ = {isa = PBXBuildFile; fileRef = BC1B4591204A3ED100DC68C6 /* HYUploadManager.m */; };
+		BC9C60802172227400188DE8 /* HYWbLines.m in Sources */ = {isa = PBXBuildFile; fileRef = BC9C607F2172227400188DE8 /* HYWbLines.m */; };
 		BCAF3A4F205781ED007AEE72 /* 1424*2144-398KB.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BCAF3A4E205781ED007AEE72 /* 1424*2144-398KB.jpg */; };
 /* End PBXBuildFile section */
 
@@ -79,6 +80,8 @@
 		18FA86FB1F99EAFD00453DCB /* HYSocketService.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYSocketService.m; sourceTree = "<group>"; };
 		BC1B4590204A3ED100DC68C6 /* HYUploadManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYUploadManager.h; sourceTree = "<group>"; };
 		BC1B4591204A3ED100DC68C6 /* HYUploadManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYUploadManager.m; sourceTree = "<group>"; };
+		BC9C607E2172227400188DE8 /* HYWbLines.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HYWbLines.h; sourceTree = "<group>"; };
+		BC9C607F2172227400188DE8 /* HYWbLines.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HYWbLines.m; sourceTree = "<group>"; };
 		BCAF3A4E205781ED007AEE72 /* 1424*2144-398KB.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "1424*2144-398KB.jpg"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -211,6 +214,8 @@
 			children = (
 				182C92332046BD4E001AF957 /* HYCADisplayLinkHolder.h */,
 				182C92342046BD4E001AF957 /* HYCADisplayLinkHolder.m */,
+				BC9C607E2172227400188DE8 /* HYWbLines.h */,
+				BC9C607F2172227400188DE8 /* HYWbLines.m */,
 				182C92362047A86B001AF957 /* HYWbPoint.h */,
 				182C92372047A86B001AF957 /* HYWbPoint.m */,
 			);
@@ -410,6 +415,7 @@
 				18E6D7A71F99D753001F208C /* HYHomeViewController.m in Sources */,
 				18E6D7AE1F99E26D001F208C /* HYSocket.m in Sources */,
 				BC1B4592204A3ED100DC68C6 /* HYUploadManager.m in Sources */,
+				BC9C60802172227400188DE8 /* HYWbLines.m in Sources */,
 				18FA86FC1F99EAFD00453DCB /* HYSocketService.m in Sources */,
 				182C92322046BC6D001AF957 /* HYWhiteboardView.m in Sources */,
 				18E6D76B1F99D435001F208C /* AppDelegate.m in Sources */,

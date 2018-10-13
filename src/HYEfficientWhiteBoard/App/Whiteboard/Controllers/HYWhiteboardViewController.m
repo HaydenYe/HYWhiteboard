@@ -69,7 +69,7 @@
 #pragma mark - HYWbDataSource
 
 // 所有的画线
-- (NSDictionary<NSString *, NSArray *> *)allLines {
+- (NSDictionary<NSString *, HYWbLines *> *)allLines {
     _needUpdate = NO;
     return _allLines;
 }
@@ -350,22 +350,26 @@
         return;
     }
     
-    NSMutableArray *lines = [_allLines objectForKey:userId];
+    HYWbLines *lines = [_allLines objectForKey:userId];
     
     if (lines == nil) {
-        lines = [[NSMutableArray alloc] init];
+        lines = [HYWbLines new];
         [_allLines setObject:lines forKey:userId];
     }
     
     if (point.type == HYWbPointTypeStart) {
-        [lines addObject:[NSMutableArray arrayWithObject:point]];
+        NSMutableArray *line = [NSMutableArray new];
+        [line addObject:point];
+        [lines.lines addObject:line];
     }
-    else if (lines.count == 0){
+    else if (lines.lines.count == 0){
         point.type = HYWbPointTypeStart;
-        [lines addObject:[NSMutableArray arrayWithObject:point]];
+        NSMutableArray *line = [NSMutableArray new];
+        [line addObject:point];
+        [lines.lines addObject:line];
     }
     else {
-        NSMutableArray *lastLine = [lines lastObject];
+        NSMutableArray *lastLine = [lines.lines lastObject];
         [lastLine addObject:point];
     }
     

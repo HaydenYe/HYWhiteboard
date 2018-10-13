@@ -104,40 +104,52 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 
 // 渲染非橡皮的画线(只渲染实时显示层)
 - (void)onDisplayLinkFire:(HYCADisplayLinkHolder *)holder duration:(NSTimeInterval)duration displayLink:(CADisplayLink *)displayLink {
-
     if (_dataSource && [_dataSource needUpdate]) {
         
-        // 自己画的线需要实时显示层(优化画线卡顿)
-        NSArray *lines = [[_dataSource allLines] objectForKey:UserOfLinesMine];
-        
-        // 清除画线的渲染
-        if (lines.count <= 0) {
-            [self.layer setNeedsDisplay];
-            self.realTimeLy.hidden = YES;
-            return;
+        // 是否需要重绘所有线
+        BOOL needUpdateLayer = NO;
+
+        for (NSString *user in [_dataSource allLines]) {
+            
+            // 先将画线渲染到实时显示层(优化画线卡顿)
+            HYWbLines *lines = [[_dataSource allLines] objectForKey:user];
+
+            // 清除画线
+            if (lines.lines.count <= 0 && lines.dirtyCount == 1) {
+                needUpdateLayer = YES;
+                lines.dirtyCount = 0;
+                continue;
+            }
+            
+            // 橡皮的画线需要直接渲染到视图层，所以不再此渲染
+            if (_isEraserLine) {
+                continue;
+            }
+            
+            // 此用户的所有点已经渲染完
+            if (lines.dirtyCount >= lines.lines.count) {
+                continue;
+            }
+            
+            // 未渲染的画线
+            NSArray *lastLines = [lines.lines subarrayWithRange:NSMakeRange(lines.dirtyCount, lines.lines.count - lines.dirtyCount)];
+            for (NSArray *line in lastLines) {
+                HYWbPoint *firstPoint = [line objectAtIndex:0];
+                CGColorRef color = [[_dataSource colorArr][firstPoint.colorIndex] CGColor];
+                // 将画线渲染到实时显示层
+                [self _drawLineOnRealTimeLayer:line color:color];
+                
+                // 是否画完一条线
+                HYWbPoint *lastPoint = [line lastObject];
+                if (lastPoint.type == HYWbPointTypeEnd) {
+                    lines.dirtyCount += 1;
+                    needUpdateLayer = YES;
+                }
+            }
         }
         
-        // 橡皮的画线需要直接渲染到视图层，所以不再此渲染
-        if (_isEraserLine) {
-            return;
-        }
-        
-        NSArray *currentLine = lines.lastObject;
-        HYWbPoint *firstPoint = [currentLine objectAtIndex:0];
-        
-        // 将画线渲染到实时显示层
-        UIBezierPath *path = [self _singleLine:currentLine needStroke:NO];
-        self.realTimeLy.path = path.CGPath;
-        _realTimeLy.strokeColor = [[_dataSource colorArr][firstPoint.colorIndex] CGColor];
-        _realTimeLy.fillColor = [UIColor clearColor].CGColor;
-        _realTimeLy.lineWidth = path.lineWidth;
-        _realTimeLy.lineCap = firstPoint.isEraser ? kCALineCapSquare : kCALineCapRound;
-        _realTimeLy.hidden = NO;
-        
-        // 如果是最后一个点，更新视图层，将线画到视图层
-        HYWbPoint *theLastPoint = [currentLine lastObject];
-        if (theLastPoint.type == HYWbPointTypeEnd) {
-            // 标记图层需要重新绘制
+        // 标记图层需要重新绘制
+        if (needUpdateLayer) {
             [self.layer setNeedsDisplay];
             _realTimeLy.hidden = YES;
         }
@@ -147,13 +159,25 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 
 #pragma mark - Private methods
 
+// 将画线渲染到实时显示层
+- (void)_drawLineOnRealTimeLayer:(NSArray *)line color:(CGColorRef)color {
+    UIBezierPath *path = [self _singleLine:line needStroke:NO];
+    self.realTimeLy.path = path.CGPath;
+    _realTimeLy.strokeColor = color;
+    _realTimeLy.fillColor = [UIColor clearColor].CGColor;
+    _realTimeLy.lineWidth = path.lineWidth;
+    _realTimeLy.lineCap = kCALineCapRound;
+    _realTimeLy.hidden = NO;
+}
+
 // 刷新视图，重绘所有画线
 - (void)_drawLines {
     // 正在渲染橡皮画线的时候，不刷新视图
     if (_isEraserLine == NO) {
         NSDictionary *allLines = [_dataSource allLines];
         for (NSString *key in allLines.allKeys) {
-            for (NSArray *line in allLines[key]) {
+            HYWbLines *lines = allLines[key];
+            for (NSArray *line in lines.lines) {
                 [self _singleLine:line needStroke:YES];
             }
         }
@@ -162,7 +186,8 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     else if ([[UIDevice currentDevice].systemVersion floatValue] >= 12.f) {
         NSDictionary *allLines = [_dataSource allLines];
         for (NSString *key in allLines.allKeys) {
-            for (NSArray *line in allLines[key]) {
+            HYWbLines *lines = allLines[key];
+            for (NSArray *line in lines.lines) {
                 [self _singleLine:line needStroke:YES];
             }
         }
