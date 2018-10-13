@@ -193,6 +193,9 @@
 - (void)onReceivePenColor:(NSInteger)colorIndex lineWidth:(NSInteger)lineWidth {
     _lineWidth = lineWidth;
     _lineColorIndex = colorIndex;
+    if (colorIndex == 5) {
+        _isEraser = YES;
+    }
 }
 
 // 接收到撤销，恢复，全部擦除消息

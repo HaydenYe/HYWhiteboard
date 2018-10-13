@@ -229,7 +229,8 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     // 需要渲染
     if (needStroke) {
         if (firstPoint.isEraser) {
-            [path strokeWithBlendMode:kCGBlendModeClear alpha:1.0];
+            [lineColor setStroke];
+            [path strokeWithBlendMode:kCGBlendModeCopy alpha:1.0];
         }
         else {
             [lineColor setStroke];
