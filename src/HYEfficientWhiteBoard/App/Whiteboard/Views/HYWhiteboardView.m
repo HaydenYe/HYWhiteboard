@@ -106,28 +106,32 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 - (void)onDisplayLinkFire:(HYCADisplayLinkHolder *)holder duration:(NSTimeInterval)duration displayLink:(CADisplayLink *)displayLink {
     if (_dataSource && [_dataSource needUpdate]) {
         
+        // 清除所有人画线
+        if ([_dataSource allLines].count == 0) {
+            [self.layer setNeedsDisplay];
+            _realTimeLy.hidden = YES;
+            return ;
+        }
+        
         // 是否需要重绘所有线
         BOOL needUpdateLayer = NO;
+        
+        // 是否为撤销操作
+        NSInteger cancelCount = 0;
 
-        for (NSString *user in [_dataSource allLines]) {
+        for (NSString *user in [[_dataSource allLines] allKeys]) {
             
             // 先将画线渲染到实时显示层(优化画线卡顿)
             HYWbLines *lines = [[_dataSource allLines] objectForKey:user];
-
-            // 清除画线
-            if (lines.lines.count <= 0 && lines.dirtyCount == 1) {
-                needUpdateLayer = YES;
-                lines.dirtyCount = 0;
-                continue;
-            }
             
             // 橡皮的画线需要直接渲染到视图层，所以不再此渲染
             if (_isEraserLine) {
                 continue;
             }
             
-            // 此用户的所有点已经渲染完
+            // 此用户的所有点已经渲染完，可能是撤销操作
             if (lines.dirtyCount >= lines.lines.count) {
+                cancelCount += 1;
                 continue;
             }
             
@@ -148,8 +152,8 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
             }
         }
         
-        // 标记图层需要重新绘制
-        if (needUpdateLayer) {
+        // 标记图层需要重新绘制，或者为撤销操作也需要更新
+        if (needUpdateLayer || cancelCount == [_dataSource allLines].count) {
             [self.layer setNeedsDisplay];
             _realTimeLy.hidden = YES;
         }

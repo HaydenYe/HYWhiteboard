@@ -126,13 +126,17 @@
             
         // 撤销
         case 23:{
-            if (_allLines[UserOfLinesMine] && [_allLines[UserOfLinesMine] count]) {
-                NSArray *line = [_allLines[UserOfLinesMine] lastObject];
-                [_cancelLines addObject:line];
-                [_allLines[UserOfLinesMine] removeObject:line];
-                _needUpdate = YES;
-                
-                [[HYConversationManager shared] sendEditAction:HYMessageCmdCancel];
+            if (_allLines[UserOfLinesMine]) {
+                HYWbLines *lines = _allLines[UserOfLinesMine];
+                if (lines.lines.count) {
+                    NSMutableArray *line = lines.lines.lastObject;
+                    [_cancelLines addObject:line];
+                    [lines.lines removeObject:line];
+                    lines.dirtyCount -= 1;
+                    _needUpdate = YES;
+                    
+                    [[HYConversationManager shared] sendEditAction:HYMessageCmdCancel];
+                }
             }
             break;
         }
@@ -140,7 +144,8 @@
         // 恢复
         case 24:{
             if (_cancelLines.count) {
-                [_allLines[UserOfLinesMine] addObject:_cancelLines.lastObject];
+                HYWbLines *lines = _allLines[UserOfLinesMine];
+                [lines.lines addObject:_cancelLines.lastObject];
                 [_cancelLines removeObjectAtIndex:_cancelLines.count - 1];
                 _needUpdate = YES;
                 
@@ -203,11 +208,15 @@
     switch (type) {
         // 撤销
         case HYMessageCmdCancel:{
-            if (_allLines[UserOfLinesOther] && [_allLines[UserOfLinesOther] count]) {
-                NSArray *line = [_allLines[UserOfLinesOther] lastObject];
-                [_cancelLines addObject:line];
-                [_allLines[UserOfLinesMine] removeObject:line];
-                _needUpdate = YES;
+            if (_allLines[UserOfLinesOther]) {
+                HYWbLines *lines = _allLines[UserOfLinesOther];
+                if (lines.lines.count > 0) {
+                    NSMutableArray *line = lines.lines.lastObject;
+                    [_cancelLines addObject:line];
+                    [lines.lines removeObject:line];
+                    lines.dirtyCount -= 1;
+                    _needUpdate = YES;
+                }
             }
             break;
         }
@@ -215,7 +224,8 @@
         // 恢复
         case HYMessageCmdResume:{
             if (_cancelLines.count) {
-                [_allLines[UserOfLinesOther] addObject:_cancelLines.lastObject];
+                HYWbLines *lines = _allLines[UserOfLinesOther];
+                [lines.lines addObject:_cancelLines.lastObject];
                 [_cancelLines removeObjectAtIndex:_cancelLines.count - 1];
                 _needUpdate = YES;
             }
