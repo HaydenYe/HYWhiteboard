@@ -128,7 +128,7 @@
         
         // 开启上传服务器监听
         [[HYServerManager shared] startServerForListeningUpload:YES successed:^(NSString *ip, int port) {
-            NSLog(@"HY 上传地址：%@", [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port]);
+            NSLog(@"HY 上传地址：%@", [NSString stringWithFormat:@"服务器ip: %@ 端口号: %d", ip, port]);
         } failed:^(NSError *error) {
             NSLog(@"****HY Error:监听上传端口失败");
         }];
@@ -136,7 +136,7 @@
         // 开启服务器监听
         __weak typeof(self) ws = self;
         [[HYServerManager shared] startServerForListeningUpload:NO successed:^(NSString *ip, int port) {
-            ws.serverLb.text = [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port];
+            ws.serverLb.text = [NSString stringWithFormat:@"服务器ip: %@ 端口号: %d", ip, port];
         } failed:^(NSError *error) {
             NSLog(@"****HY Error:监听会话端口失败");
             ws.serverLb.text = error.domain;
@@ -151,7 +151,7 @@
         // 开启会话服务器监听
         __weak typeof(self) ws = self;
         [[HYServerManager shared] startServerForListeningUpload:NO successed:^(NSString *ip, int port) {
-            ws.serverLb.text = [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port];
+            ws.serverLb.text = [NSString stringWithFormat:@"服务器ip: %@ 端口号: %d", ip, port];
         } failed:^(NSError *error) {
             NSLog(@"****HY Error:监听会话端口失败");
             ws.serverLb.text = error.domain;
@@ -159,7 +159,7 @@
         
         // 开启上传服务器监听
         [[HYServerManager shared] startServerForListeningUpload:YES successed:^(NSString *ip, int port) {
-            NSLog(@"HY 上传地址：%@", [NSString stringWithFormat:@"服务器ip: %@ 端口号: %zd", ip, port]);
+            NSLog(@"HY 上传地址：%@", [NSString stringWithFormat:@"服务器ip: %@ 端口号: %d", ip, port]);
         } failed:^(NSError *error) {
             NSLog(@"****HY Error:监听上传端口失败");
         }];

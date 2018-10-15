@@ -74,6 +74,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     // 一条线已画完，渲染到视图层
     if (wbPoint.type == HYWbPointTypeEnd) {
         _isEraserLine = NO;
+        [_dataSource allLines].dirtyCount += 1;
         [self.layer setNeedsDisplay];
         [self.layer display];
         return ;
@@ -106,54 +107,73 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 - (void)onDisplayLinkFire:(HYCADisplayLinkHolder *)holder duration:(NSTimeInterval)duration displayLink:(CADisplayLink *)displayLink {
     if (_dataSource && [_dataSource needUpdate]) {
         
+        HYWbAllLines *allLines = [_dataSource allLines];
+
         // 清除所有人画线
-        if ([_dataSource allLines].count == 0) {
+        if (allLines.allLines.count == 0) {
             [self.layer setNeedsDisplay];
             _realTimeLy.hidden = YES;
             return ;
         }
         
-        // 是否需要重绘所有线
+        // 橡皮的画线需要直接渲染到视图层，所以不再此渲染
+        if (_isEraserLine) {
+            return;
+        }
+        
+        // 此用户的所有点已经渲染完，可能是撤销或恢复操作
+        if (allLines.dirtyCount >= allLines.allLines.count) {
+            [self.layer setNeedsDisplay];
+            return;
+        }
+        
+        // 是否需要重绘所有画线
         BOOL needUpdateLayer = NO;
         
-        // 是否为撤销操作
-        NSInteger cancelCount = 0;
-
-        for (NSString *user in [[_dataSource allLines] allKeys]) {
+        // 将未渲染的画线先渲染到实时显示层(优化画线卡顿)
+        if (allLines.allLines.count - allLines.dirtyCount == 1) {
+            // 有一条未渲染的线
+            HYWbLine *line = allLines.allLines.lastObject;
             
-            // 先将画线渲染到实时显示层(优化画线卡顿)
-            HYWbLines *lines = [[_dataSource allLines] objectForKey:user];
+            // 将画线渲染到实时显示层
+            [self _drawLineOnRealTimeLayer:line.points color:line.color.CGColor];
             
-            // 橡皮的画线需要直接渲染到视图层，所以不再此渲染
-            if (_isEraserLine) {
-                continue;
+            // 是否画完一条线
+            HYWbPoint *lastPoint = [line.points lastObject];
+            if (lastPoint.type == HYWbPointTypeEnd) {
+                allLines.dirtyCount += 1;
+                needUpdateLayer = YES;
+            }
+        }
+        else {
+            // 有多条线未渲染
+            NSArray *points = [NSArray new];
+            CGColorRef color = [UIColor clearColor].CGColor;
+            for (int i = (int)allLines.dirtyCount; i < allLines.allLines.count; i++) {
+                HYWbLine *line = allLines.allLines[i];
+                color = line.color.CGColor;
+                points = [points arrayByAddingObjectsFromArray:line.points];
             }
             
-            // 此用户的所有点已经渲染完，可能是撤销操作
-            if (lines.dirtyCount >= lines.lines.count) {
-                cancelCount += 1;
-                continue;
-            }
-            
-            // 未渲染的画线
-            NSArray *lastLines = [lines.lines subarrayWithRange:NSMakeRange(lines.dirtyCount, lines.lines.count - lines.dirtyCount)];
-            for (NSArray *line in lastLines) {
-                HYWbPoint *firstPoint = [line objectAtIndex:0];
-                CGColorRef color = [[_dataSource colorArr][firstPoint.colorIndex] CGColor];
-                // 将画线渲染到实时显示层
-                [self _drawLineOnRealTimeLayer:line color:color];
+            // 将画线渲染到实时显示层
+            if (points.count) {
+                [self _drawLineOnRealTimeLayer:points color:color];
                 
-                // 是否画完一条线
-                HYWbPoint *lastPoint = [line lastObject];
+                // 最后一条线是否画完
+                HYWbPoint *lastPoint = [points lastObject];
                 if (lastPoint.type == HYWbPointTypeEnd) {
-                    lines.dirtyCount += 1;
-                    needUpdateLayer = YES;
+                    allLines.dirtyCount = allLines.allLines.count;
                 }
+                else {
+                    allLines.dirtyCount = allLines.allLines.count - 1;
+                }
+                
+                needUpdateLayer = YES;
             }
         }
         
-        // 标记图层需要重新绘制，或者为撤销操作也需要更新
-        if (needUpdateLayer || cancelCount == [_dataSource allLines].count) {
+        // 标记图层需要重新绘制
+        if (needUpdateLayer) {
             [self.layer setNeedsDisplay];
             _realTimeLy.hidden = YES;
         }
@@ -178,21 +198,21 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 - (void)_drawLines {
     // 正在渲染橡皮画线的时候，不刷新视图
     if (_isEraserLine == NO) {
-        NSDictionary *allLines = [_dataSource allLines];
-        for (NSString *key in allLines.allKeys) {
-            HYWbLines *lines = allLines[key];
-            for (NSArray *line in lines.lines) {
-                [self _singleLine:line needStroke:YES];
+        HYWbAllLines *allLines = [_dataSource allLines];
+        for (HYWbLine *line in allLines.allLines) {
+            // 是否为空模型
+            if (line.points.count) {
+                [self _singleLine:line.points needStroke:YES];
             }
         }
     }
 #warning iOS12版本setNeedsDisplayInRect:不能局部绘制，等待修复
     else if ([[UIDevice currentDevice].systemVersion floatValue] >= 12.f) {
-        NSDictionary *allLines = [_dataSource allLines];
-        for (NSString *key in allLines.allKeys) {
-            HYWbLines *lines = allLines[key];
-            for (NSArray *line in lines.lines) {
-                [self _singleLine:line needStroke:YES];
+        HYWbAllLines *allLines = [_dataSource allLines];
+        for (HYWbLine *line in allLines.allLines) {
+            // 是否为空模型
+            if (line.points.count) {
+                [self _singleLine:line.points needStroke:YES];
             }
         }
     }

@@ -23,8 +23,8 @@
 @property (nonatomic, assign)NSInteger          lineColorIndex; // 画线颜色的索引
 @property (nonatomic, assign)NSInteger          lineWidth;      // 画线宽度
 
-@property (nonatomic, strong)NSMutableDictionary*allLines;      // 所有画线
-@property (nonatomic, strong)NSMutableArray     *cancelLines;   // 被撤销画线
+@property (nonatomic, strong)HYWbAllLines       *allLines;      // 所有画线
+@property (nonatomic, strong)NSMutableDictionary*cancelLines;   // 被撤销画线
 @property (nonatomic, assign)BOOL               isEraser;       // 是否为橡皮模式
 @property (nonatomic, assign)BOOL               needUpdate;     // 需要更新白板视图
 
@@ -69,7 +69,7 @@
 #pragma mark - HYWbDataSource
 
 // 所有的画线
-- (NSDictionary<NSString *, HYWbLines *> *)allLines {
+- (HYWbAllLines *)allLines {
     _needUpdate = NO;
     return _allLines;
 }
@@ -126,42 +126,19 @@
             
         // 撤销
         case 23:{
-            if (_allLines[UserOfLinesMine]) {
-                HYWbLines *lines = _allLines[UserOfLinesMine];
-                if (lines.lines.count) {
-                    NSMutableArray *line = lines.lines.lastObject;
-                    [_cancelLines addObject:line];
-                    [lines.lines removeObject:line];
-                    lines.dirtyCount -= 1;
-                    _needUpdate = YES;
-                    
-                    [[HYConversationManager shared] sendEditAction:HYMessageCmdCancel];
-                }
-            }
+            [self _cancelLinesWithUserId:UserOfLinesMine];
             break;
         }
             
         // 恢复
         case 24:{
-            if (_cancelLines.count) {
-                HYWbLines *lines = _allLines[UserOfLinesMine];
-                [lines.lines addObject:_cancelLines.lastObject];
-                [_cancelLines removeObjectAtIndex:_cancelLines.count - 1];
-                _needUpdate = YES;
-                
-                [[HYConversationManager shared] sendEditAction:HYMessageCmdResume];
-            }
+            [self _resumeLineWithUserId:UserOfLinesMine];
             break;
         }
             
         // 清除
         case 25:{
-            if (_allLines.count) {
-                [_allLines removeAllObjects];
-                _needUpdate = YES;
-                
-                [[HYConversationManager shared] sendEditAction:HYMessageCmdClearAll];
-            }
+            [self _clearAllUserLinesWithUserId:UserOfLinesMine];
             break;
         }
         
@@ -201,6 +178,9 @@
     if (colorIndex == 5) {
         _isEraser = YES;
     }
+    else {
+        _isEraser = NO;
+    }
 }
 
 // 接收到撤销，恢复，全部擦除消息
@@ -208,34 +188,19 @@
     switch (type) {
         // 撤销
         case HYMessageCmdCancel:{
-            if (_allLines[UserOfLinesOther]) {
-                HYWbLines *lines = _allLines[UserOfLinesOther];
-                if (lines.lines.count > 0) {
-                    NSMutableArray *line = lines.lines.lastObject;
-                    [_cancelLines addObject:line];
-                    [lines.lines removeObject:line];
-                    lines.dirtyCount -= 1;
-                    _needUpdate = YES;
-                }
-            }
+            [self _cancelLinesWithUserId:UserOfLinesOther];
             break;
         }
             
         // 恢复
         case HYMessageCmdResume:{
-            if (_cancelLines.count) {
-                HYWbLines *lines = _allLines[UserOfLinesOther];
-                [lines.lines addObject:_cancelLines.lastObject];
-                [_cancelLines removeObjectAtIndex:_cancelLines.count - 1];
-                _needUpdate = YES;
-            }
+            [self _resumeLineWithUserId:UserOfLinesOther];
             break;
         }
             
         // 清除
         case HYMessageCmdClearAll:{
-            [_allLines removeAllObjects];
-            _needUpdate = YES;
+            [self _clearAllUserLinesWithUserId:UserOfLinesOther];
             break;
         }
             
@@ -298,8 +263,8 @@
     _lineColorIndex = 0;
     _lineWidth = [_colorPanel.lineWidthArr.firstObject integerValue];
     
-    _allLines = [NSMutableDictionary new];
-    _cancelLines = [NSMutableArray new];
+    _allLines = [HYWbAllLines new];
+    _cancelLines = [NSMutableDictionary new];
     
     _drawable = YES;
 }
@@ -363,30 +328,109 @@
         return;
     }
     
-    HYWbLines *lines = [_allLines objectForKey:userId];
-    
-    if (lines == nil) {
-        lines = [HYWbLines new];
-        [_allLines setObject:lines forKey:userId];
-    }
-    
+    // 画线的起始点，生成新的Line
     if (point.type == HYWbPointTypeStart) {
-        NSMutableArray *line = [NSMutableArray new];
-        [line addObject:point];
-        [lines.lines addObject:line];
+        HYWbLine *line = [HYWbLine new];
+        line.color = [self colorArr][point.colorIndex];
+        line.lineWidth = point.lineWidth;
+        line.lineIndex = _allLines.allLines.count;
+        if (_allLines.lastLineIndex[userId]) {
+            line.lastLineIndex = [_allLines.lastLineIndex[userId] integerValue];
+        }
+        else {
+            line.lastLineIndex = -1;
+        }
+        [line.points addObject:point];
+        
+        [_allLines.allLines addObject:line];
+        [_allLines.lastLineIndex setObject:@(line.lineIndex) forKey:userId];
     }
-    else if (lines.lines.count == 0){
+    // 没有任何点，则认为该点为起始点
+    else if (_allLines.allLines.count == 0){
         point.type = HYWbPointTypeStart;
-        NSMutableArray *line = [NSMutableArray new];
-        [line addObject:point];
-        [lines.lines addObject:line];
+        HYWbLine *line = [HYWbLine new];
+        line.color = [self colorArr][point.colorIndex];
+        line.lineWidth = point.lineWidth;
+        line.lineIndex = 0;
+        line.lastLineIndex = -1;
+        [line.points addObject:point];
+        [_allLines.allLines addObject:line];
+        [_allLines.lastLineIndex setObject:@(line.lineIndex) forKey:userId];
     }
+    // 非起始点
     else {
-        NSMutableArray *lastLine = [lines.lines lastObject];
-        [lastLine addObject:point];
+        NSInteger index = [_allLines.lastLineIndex[userId] integerValue];
+        HYWbLine *lastLine = _allLines.allLines[index];
+        [lastLine.points addObject:point];
     }
     
     _needUpdate = YES;
+}
+
+// 撤销操作
+- (void)_cancelLinesWithUserId:(NSString *)userId {
+    if (_allLines.lastLineIndex[userId]) {
+        // 获取userId对应的最后一条画线
+        NSInteger index = [_allLines.lastLineIndex[userId] integerValue];
+        if (index > -1 && index < _allLines.allLines.count) {
+            HYWbLine *line = _allLines.allLines[index];
+            NSMutableArray *cancelLines = _cancelLines[userId];
+            if (cancelLines == nil) {
+                cancelLines = [NSMutableArray new];
+                [_cancelLines setObject:cancelLines forKey:userId];
+            }
+            [cancelLines addObject:line];
+            
+            // 用空模型占位，做逻辑删除
+            [_allLines.allLines setObject:[HYWbLine new] atIndexedSubscript:line.lineIndex];
+            
+            // 调整userId的指针位置
+            [_allLines.lastLineIndex setObject:[NSNumber numberWithInteger:line.lastLineIndex] forKey:userId];
+            
+            _needUpdate = YES;
+            
+            // 发送消息
+            if ([userId isEqualToString:UserOfLinesMine]) {
+                [[HYConversationManager shared] sendEditAction:HYMessageCmdCancel];
+            }
+        }
+    }
+}
+
+// 恢复操作
+- (void)_resumeLineWithUserId:(NSString *)userId {
+    if (_cancelLines[userId] && [_cancelLines[userId] count]) {
+        NSMutableArray *cancelLines = _cancelLines[userId];
+        HYWbLine *line = cancelLines.lastObject;
+        
+        // 替换掉用来的空模型
+        [_allLines.allLines setObject:line atIndexedSubscript:line.lineIndex];
+        [cancelLines removeObject:line];
+        
+        // 调整userId的指针位置
+        [_allLines.lastLineIndex setObject:[NSNumber numberWithInteger:line.lineIndex] forKey:userId];
+        
+        _needUpdate = YES;
+        
+        // 发送消息
+        if ([userId isEqualToString:UserOfLinesMine]) {
+            [[HYConversationManager shared] sendEditAction:HYMessageCmdResume];
+        }
+    }
+}
+
+// 清除所有人的画线
+- (void)_clearAllUserLinesWithUserId:(NSString *)userId {
+    if (_allLines.allLines.count) {
+        [_allLines.allLines removeAllObjects];
+        [_cancelLines removeAllObjects];
+        _needUpdate = YES;
+        
+        // 发送消息
+        if ([userId isEqualToString:UserOfLinesMine]) {
+            [[HYConversationManager shared] sendEditAction:HYMessageCmdClearAll];
+        }
+    }
 }
 
 // 插入图片

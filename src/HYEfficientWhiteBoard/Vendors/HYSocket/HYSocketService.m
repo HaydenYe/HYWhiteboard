@@ -109,7 +109,7 @@
 // 服务器地址是否正确
 - (NSError *)isValidAddress:(NSString *)ip port:(int)port {
     if (ip == nil || ip.length < 1 || port < 1) {
-        return [NSError errorWithDomain:@"服务器地址错误" code:kCFSocketError userInfo:@{@"ip":ip, @"port":[NSString stringWithFormat:@"%zd", port]}];
+        return [NSError errorWithDomain:@"服务器地址错误" code:kCFSocketError userInfo:@{@"ip":ip, @"port":[NSString stringWithFormat:@"%d", port]}];
     }
     else {
         return nil;
