@@ -95,7 +95,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     }
     
     // 计算橡皮的两点之间的画点
-    [self _addEraserPointFromPoint:point lineWidth:wbPoint.lineWidth];
+    [self _addEraserPointFromPoint:point lineWidth:wbPoint.lineWidth * self.frame.size.width / 100.f];
     
     _lastEraserPoint = point;
 }
@@ -223,11 +223,12 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     
     // 取线的起始点，获取画线的信息
     HYWbPoint *firstPoint = line.firstObject;
+    CGFloat lineWidth = firstPoint.lineWidth * self.frame.size.width / 100.f;
     
     // 初始化贝塞尔曲线
     UIBezierPath *path = [UIBezierPath new];
     path.lineJoinStyle = kCGLineJoinRound;
-    path.lineWidth = firstPoint.isEraser ? firstPoint.lineWidth * 2.f : firstPoint.lineWidth;
+    path.lineWidth = firstPoint.isEraser ? lineWidth * 2.f : lineWidth;
     path.lineCapStyle = firstPoint.isEraser ? kCGLineCapSquare : kCGLineCapRound;
     
     // 画线颜色
@@ -266,7 +267,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 }
 
 // 计算橡皮的两点之间的画点
-- (void)_addEraserPointFromPoint:(CGPoint)point lineWidth:(NSInteger)lineWidth {
+- (void)_addEraserPointFromPoint:(CGPoint)point lineWidth:(CGFloat)lineWidth {
     
     // 两个点之间，x、y的偏移量
     CGFloat offsetX = point.x - self.lastEraserPoint.x;
@@ -352,7 +353,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 }
 
 // 渲染橡皮画线
-- (void)_drawEraserPoint:(CGPoint)point lineWidth:(NSInteger)width {
+- (void)_drawEraserPoint:(CGPoint)point lineWidth:(CGFloat)width {
     CGFloat lineWidth = width * 2.f / 1.414f;
     
     // 只重绘局部，提高效率

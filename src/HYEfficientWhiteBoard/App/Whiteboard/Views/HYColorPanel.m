@@ -13,7 +13,9 @@
 - (instancetype)init {
     if (self = [super init]) {
         _colorArr = @[COLOR_WITH_HEX(0x326ed9, 1.f), COLOR_WITH_HEX(0x306c00, 1.f), COLOR_WITH_HEX(0x66d552, 1.f), COLOR_WITH_HEX(0xff1ecf, 1.f), COLOR_WITH_HEX(0x4ea1b7, 1.f), [UIColor clearColor]];
-        _lineWidthArr = @[@3, @6, @9];
+        
+        // 占图片尺寸的百分比
+        _lineWidthArr = @[@1, @2, @3];
         
         self.backgroundColor = [UIColor colorWithWhite:1.f alpha:.4f];
         self.frame = CGRectMake(([UIScreen mainScreen].bounds.size.width - 325.f) / 2.f, [UIScreen mainScreen].bounds.size.height - 105.f, 325.f, 105.f);
@@ -57,7 +59,8 @@
         
         UIView *roundView = [UIView new];
         roundView.backgroundColor = [UIColor blackColor];
-        roundView.bounds = CGRectMake(0, 0, [obj integerValue], [obj integerValue]);
+        CGFloat size = [obj integerValue] * [UIScreen mainScreen].bounds.size.width / 100.f;
+        roundView.bounds = CGRectMake(0, 0, size, size);
         roundView.center = widthBtn.center;
         [self addSubview:roundView];
     }];
