@@ -111,6 +111,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 
         // 清除所有人画线
         if (allLines.allLines.count == 0) {
+            allLines.dirtyCount = 0;
             [self.layer setNeedsDisplay];
             _realTimeLy.hidden = YES;
             return ;

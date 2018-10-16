@@ -27,6 +27,8 @@
 @property (nonatomic, strong)NSMutableDictionary*cancelLines;   // 被撤销画线
 @property (nonatomic, assign)BOOL               isEraser;       // 是否为橡皮模式
 @property (nonatomic, assign)BOOL               needUpdate;     // 需要更新白板视图
+@property (nonatomic, assign)CGPoint            lastPoint;      // 上一个点的位置
+@property (nonatomic, assign)CGFloat            difMin;         // 距离上一个点的最小距离
 
 @property (nonatomic, assign)BOOL               drawable;       // 是否可以画线
 
@@ -267,6 +269,9 @@
     _cancelLines = [NSMutableDictionary new];
     
     _drawable = YES;
+    
+    // 固定数值，适用所有尺寸
+    _difMin = 6.f / 768.f;
 }
 
 // 添加所有的手势
@@ -344,6 +349,8 @@
         
         [_allLines.allLines addObject:line];
         [_allLines.lastLineIndex setObject:@(line.lineIndex) forKey:userId];
+        
+        _lastPoint = CGPointMake(point.xScale, point.yScale);
     }
     // 没有任何点，则认为该点为起始点
     else if (_allLines.allLines.count == 0){
@@ -356,13 +363,21 @@
         [line.points addObject:point];
         [_allLines.allLines addObject:line];
         [_allLines.lastLineIndex setObject:@(line.lineIndex) forKey:userId];
+        
+        _lastPoint = CGPointMake(point.xScale, point.yScale);
     }
     // 非起始点
     else {
-        NSInteger index = [_allLines.lastLineIndex[userId] integerValue];
-        HYWbLine *lastLine = _allLines.allLines[index];
-        [lastLine.points addObject:point];
+        // 过滤非关键点，减少数据量
+        if (fabs(point.xScale - _lastPoint.x) > _difMin || fabs(point.yScale - _lastPoint.y) > _difMin || point.type == HYWbPointTypeEnd) {
+            NSInteger index = [_allLines.lastLineIndex[userId] integerValue];
+            HYWbLine *lastLine = _allLines.allLines[index];
+            [lastLine.points addObject:point];
+
+            _lastPoint = CGPointMake(point.xScale, point.yScale);
+        }
     }
+    
     
     _needUpdate = YES;
 }
