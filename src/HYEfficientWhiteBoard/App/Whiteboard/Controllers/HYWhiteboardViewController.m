@@ -76,11 +76,6 @@
     return _allLines;
 }
 
-// 颜色数组
-- (NSArray<UIColor *> *)colorArr {
-    return _colorPanel.colorArr;
-}
-
 // 当前是否为橡皮擦模式
 - (BOOL)isEraser {
     return _isEraser;
@@ -336,7 +331,7 @@
     // 画线的起始点，生成新的Line
     if (point.type == HYWbPointTypeStart) {
         HYWbLine *line = [HYWbLine new];
-        line.color = [self colorArr][point.colorIndex];
+        line.color = _colorPanel.colorArr[point.colorIndex];
         line.lineWidth = point.lineWidth;
         line.lineIndex = _allLines.allLines.count;
         if (_allLines.lastLineIndex[userId]) {
@@ -356,7 +351,7 @@
     else if (_allLines.allLines.count == 0){
         point.type = HYWbPointTypeStart;
         HYWbLine *line = [HYWbLine new];
-        line.color = [self colorArr][point.colorIndex];
+        line.color = _colorPanel.colorArr[point.colorIndex];
         line.lineWidth = point.lineWidth;
         line.lineIndex = 0;
         line.lastLineIndex = -1;

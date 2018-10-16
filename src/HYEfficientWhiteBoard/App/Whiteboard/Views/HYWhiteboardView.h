@@ -18,9 +18,6 @@ extern NSString *const UserOfLinesOther;        // 其他人画线的key
 // 所有的画线
 - (HYWbAllLines *)allLines;
 
-// 颜色数组
-- (NSArray<UIColor *> *)colorArr;
-
 // 当前是否为橡皮擦模式
 - (BOOL)isEraser;
 

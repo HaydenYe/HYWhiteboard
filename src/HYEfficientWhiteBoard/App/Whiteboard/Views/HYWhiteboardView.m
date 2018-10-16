@@ -186,7 +186,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
 
 // 将画线渲染到实时显示层
 - (void)_drawLineOnRealTimeLayer:(NSArray *)line color:(CGColorRef)color {
-    UIBezierPath *path = [self _singleLine:line needStroke:NO];
+    UIBezierPath *path = [self _singleLine:line needStroke:NO lineColor:nil];
     self.realTimeLy.path = path.CGPath;
     _realTimeLy.strokeColor = color;
     _realTimeLy.fillColor = [UIColor clearColor].CGColor;
@@ -203,7 +203,7 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
         for (HYWbLine *line in allLines.allLines) {
             // 是否为空模型
             if (line.points.count) {
-                [self _singleLine:line.points needStroke:YES];
+                [self _singleLine:line.points needStroke:YES lineColor:line.color];
             }
         }
     }
@@ -213,14 +213,14 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
         for (HYWbLine *line in allLines.allLines) {
             // 是否为空模型
             if (line.points.count) {
-                [self _singleLine:line.points needStroke:YES];
+                [self _singleLine:line.points needStroke:YES lineColor:line.color];
             }
         }
     }
 }
 
 // 获取一条贝塞尔曲线
-- (UIBezierPath *)_singleLine:(NSArray<HYWbPoint *> *)line needStroke:(BOOL)needStroke {
+- (UIBezierPath *)_singleLine:(NSArray<HYWbPoint *> *)line needStroke:(BOOL)needStroke lineColor:(UIColor *)color {
     
     // 取线的起始点，获取画线的信息
     HYWbPoint *firstPoint = line.firstObject;
@@ -231,9 +231,6 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     path.lineJoinStyle = kCGLineJoinRound;
     path.lineWidth = firstPoint.isEraser ? lineWidth * 2.f : lineWidth;
     path.lineCapStyle = firstPoint.isEraser ? kCGLineCapSquare : kCGLineCapRound;
-    
-    // 画线颜色
-    UIColor *lineColor = [_dataSource colorArr][firstPoint.colorIndex];
     
     // 生成贝塞尔曲线
     for (HYWbPoint *point in line) {
@@ -255,11 +252,11 @@ NSString *const UserOfLinesOther = @"Other";    // 其他人画线的key
     // 需要渲染
     if (needStroke) {
         if (firstPoint.isEraser) {
-            [lineColor setStroke];
+            [color setStroke];
             [path strokeWithBlendMode:kCGBlendModeCopy alpha:1.0];
         }
         else {
-            [lineColor setStroke];
+            [color setStroke];
             [path strokeWithBlendMode:kCGBlendModeNormal alpha:1.0];
         }
     }
